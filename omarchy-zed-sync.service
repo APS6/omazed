@@ -1,15 +1,18 @@
 [Unit]
 Description=Omarchy Zed Theme Sync
-Documentation=https://github.com/aps/omarchy-theme-zed
-After=graphical-session.target
+Documentation=https://github.com/aps6/omarchy-theme-zed
+After=graphical-session.target xdg-desktop-portal.service
 Wants=graphical-session.target
+StartLimitBurst=3
+StartLimitIntervalSec=60
 
 [Service]
 Type=simple
 ExecStart=%h/.local/bin/omarchy-zed-theme-sync.sh watch
-Restart=always
-RestartSec=5
+Restart=on-failure
+RestartSec=10
 Environment=HOME=%h
+RestartPreventExitStatus=1
 
 [Install]
-WantedBy=default.target
+WantedBy=graphical-session.target

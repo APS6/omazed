@@ -45,18 +45,6 @@ error() {
     echo -e "${RED}[ERROR]${NC} $*" | tee -a "$LOG_FILE" 2>/dev/null || echo -e "${RED}[ERROR]${NC} $*"
 }
 
-# Theme mappings - simple 1:1 mapping from omarchy theme name to zed theme name
-declare -A THEME_MAPPINGS=(
-    ["catppuccin"]="Catppuccin"
-    ["everforest"]="Everforest"
-    ["gruvbox"]="Gruvbox"
-    ["kanagawa"]="Kanagawa"
-    ["matte-black"]="Matte Black"
-    ["nord"]="Nord"
-    ["osaka-jade"]="Osaka Jade"
-    ["ristretto"]="Ristretto"
-    ["tokyo-night"]="Tokyo Night"
-)
 
 # Check dependencies
 check_deps() {
@@ -136,17 +124,12 @@ get_current_theme() {
     echo "$theme"
 }
 
-# Map Omarchy theme name to Zed theme name
+# Map Omarchy theme name to Zed theme name using regex transformation
 map_theme_name() {
     local omarchy_theme="$1"
 
-    # Check if we have a specific mapping
-    if [[ -n "${THEME_MAPPINGS[$omarchy_theme]:-}" ]]; then
-        echo "${THEME_MAPPINGS[$omarchy_theme]}"
-    else
-        # Fallback: just use the theme name as-is
-        echo "$omarchy_theme"
-    fi
+    # Transform: capitalize first letter and letters after dashes, then replace dashes with spaces
+    echo "$omarchy_theme" | sed 's/\(^\|[-]\)\([a-z]\)/\1\u\2/g; s/-/ /g'
 }
 
 # Update Zed settings
@@ -154,6 +137,12 @@ update_zed_theme() {
     local theme_name="$1"
 
     info "Setting Zed theme to: $theme_name"
+
+    # Safety check - make sure we're not interfering with critical boot processes
+    if [[ -e "/tmp/omarchy-boot-in-progress" ]]; then
+        info "Omarchy boot in progress, deferring theme update"
+        return 0
+    fi
 
     # Create config directory if it doesn't exist
     mkdir -p "$ZED_CONFIG_DIR"
@@ -184,6 +173,12 @@ update_zed_theme() {
 
 # Handle theme change
 handle_theme_change() {
+    # Safety check - don't interfere if Omarchy is still booting
+    if ! pgrep -f "omarchy" >/dev/null 2>&1 && [[ ! -e "$OMARCHY_THEME_PATH" ]]; then
+        info "Omarchy not ready yet, skipping theme sync"
+        return 0
+    fi
+
     local current_theme
     current_theme=$(get_current_theme)
 
@@ -221,6 +216,27 @@ start_watching() {
     info "Watching: $OMARCHY_THEME_PATH"
     info "Zed themes: $ZED_THEMES_DIR"
     info "Zed settings: $ZED_SETTINGS_PATH"
+
+    # Wait for Omarchy to fully initialize before starting
+    info "Waiting for Omarchy theme system to be ready..."
+    local wait_count=0
+    while [[ $wait_count -lt 30 ]]; do
+        if [[ -e "$OMARCHY_THEME_PATH" ]]; then
+            # Additional check - make sure the file is stable
+            sleep 2
+            if [[ -e "$OMARCHY_THEME_PATH" ]]; then
+                break
+            fi
+        fi
+        sleep 1
+        ((wait_count++))
+    done
+
+    if [[ $wait_count -ge 30 ]]; then
+        warn "Timeout waiting for Omarchy theme system - continuing anyway"
+    else
+        info "Omarchy theme system is ready"
+    fi
 
     # Set initial theme
     handle_theme_change
