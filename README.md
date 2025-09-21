@@ -87,8 +87,8 @@ systemctl --user disable omazed.service
 ## Available Themes
 
 The following default Omarchy themes are included:
-
 - **Catppuccin** - Warm, pastel theme
+- **Catppuccin Latte** - Light variant of Catppuccin
 - **Everforest** - Green-based comfortable theme
 - **Gruvbox** - Retro groove colors
 - **Kanagawa** - Japanese-inspired theme
@@ -96,6 +96,7 @@ The following default Omarchy themes are included:
 - **Nord** - Arctic-inspired blue theme
 - **Osaka Jade** - Elegant green theme
 - **Ristretto** - Coffee-inspired dark theme
+- **Rose Pine** - Soho vibes for cosy coding (light)
 - **Tokyo Night** - Vibrant night theme
 
 ## Configuration
