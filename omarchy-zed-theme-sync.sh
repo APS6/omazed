@@ -1,9 +1,5 @@
 #!/bin/bash
 
-# Omarchy Theme Sync for Zed
-# A standalone tool that syncs Omarchy system themes with Zed editor
-# No extension needed - just copies themes and updates settings
-
 set -euo pipefail
 
 # Configuration
@@ -194,11 +190,13 @@ handle_theme_change() {
     zed_theme=$(map_theme_name "$current_theme")
 
     # Check if corresponding theme file exists in Zed themes directory
-        local theme_file="$ZED_THEMES_DIR/${current_theme}.json"
-        if [[ ! -f "$theme_file" ]]; then
-            warn "Theme file not found: $theme_file"
-            info "Available themes: $(ls -1 "$ZED_THEMES_DIR"/*.json 2>/dev/null | xargs -n1 basename | tr '\n' ' ')"
-        fi
+    local theme_file="$ZED_THEMES_DIR/${current_theme}.json"
+    if [[ ! -f "$theme_file" ]]; then
+        warn "Theme file not found: $theme_file"
+        info "Available themes: $(ls -1 "$ZED_THEMES_DIR"/*.json 2>/dev/null | xargs -n1 basename | tr '\n' ' ')"
+        info "Skipping Zed theme update - no corresponding theme file available"
+        return 0
+    fi
 
     # Update Zed settings
     if update_zed_theme "$zed_theme"; then
@@ -376,19 +374,6 @@ COMMANDS:
 OPTIONS:
     -h, --help  Show this help
     -d, --daemon Run as background daemon
-
-EXAMPLES:
-    $0 install          # First-time setup
-    $0                  # Start watching (foreground)
-    $0 --daemon         # Start watching (background)
-    $0 test             # Test current configuration
-    $0 sync             # Sync once and exit
-    $0 stop             # Stop background watcher
-
-FILES:
-    Themes: $ZED_THEMES_DIR
-    Settings: $ZED_SETTINGS_PATH
-    Log: $LOG_FILE
 
 EOF
 }
