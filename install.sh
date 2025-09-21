@@ -193,7 +193,7 @@ print_completion() {
     cat << EOF
 
 ╔═══════════════════════════════════════════════════════════╗
-║                  INSTALLATION COMPLETE!                  ║
+║                  INSTALLATION COMPLETE!                   ║
 ╚═══════════════════════════════════════════════════════════╝
 
 🎉 Omazed is ready for live theme switching!
@@ -209,10 +209,19 @@ print_completion() {
    No further action needed!
 
 🔧 MANUAL COMMANDS (if needed):
-   # Test setup:
+   # Start the theme watcher (systemd service)
+   omazed start
+
+   # Stop running systemd service and/or daemons
+   omazed stop
+
+   # Check if omazed is running
+   omazed status
+
+   # Test current setup
    omazed test
 
-   # Manual sync:
+   # Sync theme once and exit
    omazed sync
 
 📊 SERVICE MANAGEMENT:

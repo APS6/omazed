@@ -14,11 +14,11 @@ NC='\033[0m' # No Color
 
 # Configuration
 BIN_DIR="$HOME/.local/bin"
-INSTALL_DIR="$HOME/.local/share/omazed"
+DATA_DIR="$HOME/.local/share/omazed"
 SERVICE_DIR="$HOME/.config/systemd/user"
 SYNC_SCRIPT="$BIN_DIR/omazed"
 SERVICE_FILE="$SERVICE_DIR/omazed.service"
-LOG_FILE="$INSTALL_DIR/uninstall.log"
+LOG_FILE="$DATA_DIR/uninstall.log"
 LOCK_FILE="/tmp/omazed.lock"
 
 # Ensure log directory exists for this run
@@ -66,8 +66,8 @@ check_installation() {
         found_components+=("Systemd Service")
     fi
 
-    if [[ -d "$INSTALL_DIR" ]]; then
-        found_components+=("Installation Directory")
+    if [[ -d "$DATA_DIR" ]]; then
+        found_components+=("Application Data Directory")
     fi
 
     if systemctl --user is-enabled omazed.service >/dev/null 2>&1; then
@@ -161,31 +161,15 @@ remove_sync_script() {
     fi
 }
 
-# Remove installation directory and logs
-remove_installation_dir() {
-    info "Removing installation directory..."
+# Remove application data directory and logs
+remove_data_dir() {
+    info "Removing application data directory..."
 
-    if [[ -d "$INSTALL_DIR" ]]; then
-        # Show what's in the directory
-        local file_count
-        file_count=$(find "$INSTALL_DIR" -type f | wc -l)
-
-        if [[ $file_count -gt 0 ]]; then
-            info "Directory contains $file_count files"
-
-            if [[ "${FORCE:-false}" != "true" ]]; then
-                read -p "Remove installation directory and all logs? (y/N): " -r
-                if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-                    warn "Keeping installation directory: $INSTALL_DIR"
-                    return
-                fi
-            fi
-        fi
-
-        if rm -rf "$INSTALL_DIR"; then
-            log "Installation directory removed ✓"
+    if [[ -d "$DATA_DIR" ]]; then
+        if rm -rf "$DATA_DIR"; then
+            log "Application data directory removed ✓"
         else
-            error "Failed to remove installation directory"
+            error "Failed to remove application data directory"
         fi
     fi
 }
@@ -223,44 +207,14 @@ cleanup_config() {
     log "Configuration cleanup completed ✓"
 }
 
-# Backup important files before removal
-create_backup() {
-    if [[ "${CREATE_BACKUP:-true}" == "true" ]]; then
-        info "Creating backup of configuration files..."
 
-        local backup_dir="$HOME/.local/share/omazed-backup-$(date +%Y%m%d-%H%M%S)"
-        mkdir -p "$backup_dir"
-
-        # Backup service file
-        if [[ -f "$SERVICE_FILE" ]]; then
-            cp "$SERVICE_FILE" "$backup_dir/"
-        fi
-
-        # Backup sync script
-        if [[ -f "$SYNC_SCRIPT" ]]; then
-            cp "$SYNC_SCRIPT" "$backup_dir/"
-        fi
-
-        # Backup logs
-        if [[ -d "$INSTALL_DIR" ]]; then
-            cp -r "$INSTALL_DIR"/* "$backup_dir/" 2>/dev/null || true
-        fi
-
-        if [[ -n "$(ls -A "$backup_dir" 2>/dev/null)" ]]; then
-            log "Backup created at: $backup_dir ✓"
-        else
-            rmdir "$backup_dir"
-            info "No files to backup"
-        fi
-    fi
-}
 
 # Print post-uninstall information
 print_completion() {
     cat << EOF
 
 ╔═══════════════════════════════════════════════════════════╗
-║                  UNINSTALLATION COMPLETE!                ║
+║                  UNINSTALLATION COMPLETE!                 ║
 ╚═══════════════════════════════════════════════════════════╝
 
 🗑️  Omazed has been removed successfully!
@@ -269,7 +223,7 @@ print_completion() {
 
    ✓ Theme sync script
    ✓ Systemd service
-   ✓ Installation directory and logs
+   ✓ Application data directory and logs
    ✓ Service configuration
 
 📝 MANUAL CLEANUP (optional):
@@ -303,7 +257,6 @@ main() {
 
     # Parse arguments
     local force=false
-    local no_backup=false
     local yes=false
 
     while [[ $# -gt 0 ]]; do
@@ -313,31 +266,27 @@ main() {
                 FORCE=true
                 shift
                 ;;
-            --no-backup)
-                no_backup=true
-                CREATE_BACKUP=false
-                shift
-                ;;
+
             -y|--yes)
                 yes=true
                 shift
                 ;;
             -h|--help)
                 cat << EOF
-Omazed Uninstaller - Live theme switching for zed in omarchy
+Omazed Uninstaller
 
 Usage: $0 [OPTIONS]
 
 Options:
     -h, --help      Show this help message
     --force         Force removal without prompts
-    --no-backup     Don't create backup of files
+
     -y, --yes       Answer yes to all prompts
 
 Examples:
     $0              # Interactive uninstallation
     $0 --force      # Force removal of all components
-    $0 --no-backup  # Don't create backup files
+
 EOF
                 exit 0
                 ;;
@@ -366,15 +315,12 @@ EOF
         fi
     fi
 
-    # Create backup if requested
-    if [[ "$no_backup" != "true" ]]; then
-        create_backup
-    fi
+
 
     # Remove components
     remove_service
     remove_sync_script
-    remove_installation_dir
+    remove_data_dir
     check_zed_themes
     cleanup_config
 
