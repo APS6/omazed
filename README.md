@@ -49,17 +49,20 @@ Voila! Live theme switching should now work automatically.
 
 ### Commands
 ```bash
-# Install themes to Zed
-omazed install # This is automatically done by install.sh
+# Start the theme watcher (systemd service)
+omazed start
+
+# Stop running daemon and systemd service
+omazed stop
+
+# Check if omazed is running
+omazed status
 
 # Test current setup
 omazed test
 
 # Sync theme once and exit
 omazed sync
-
-# Stop running daemon
-omazed stop
 ```
 
 ### Systemd Service

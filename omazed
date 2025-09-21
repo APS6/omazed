@@ -10,6 +10,7 @@ ZED_THEMES_DIR="$ZED_CONFIG_DIR/themes"
 ZED_SETTINGS_PATH="$ZED_CONFIG_DIR/settings.json"
 LOG_FILE="$HOME/.local/share/omazed/sync.log"
 LOCK_FILE="/tmp/omazed.lock"
+SERVICE_DIR="$HOME/.config/systemd/user"
 
 # Colors for output
 RED='\033[0;31m'
@@ -61,43 +62,6 @@ check_deps() {
     return 0
 }
 
-# Install themes to Zed
-install_themes() {
-    info "Installing themes to Zed..."
-
-    # Create Zed themes directory
-    mkdir -p "$ZED_THEMES_DIR"
-
-    if [[ ! -d "$SCRIPT_DIR/themes" ]]; then
-        error "Themes directory not found: $SCRIPT_DIR/themes"
-        return 1
-    fi
-
-    local installed_count=0
-
-    for theme_file in "$SCRIPT_DIR/themes"/*.json; do
-        if [[ -f "$theme_file" ]]; then
-            local basename=$(basename "$theme_file")
-
-            # Validate JSON
-            if jq empty "$theme_file" 2>/dev/null; then
-                cp "$theme_file" "$ZED_THEMES_DIR/"
-                success "Installed theme: $basename"
-                installed_count=$((installed_count + 1))
-            else
-                warn "Skipping invalid JSON: $basename"
-            fi
-        fi
-    done
-
-    if [[ $installed_count -gt 0 ]]; then
-        success "Installed $installed_count theme(s) to $ZED_THEMES_DIR"
-        return 0
-    else
-        error "No themes were installed"
-        return 1
-    fi
-}
 
 # Get current Omarchy theme
 get_current_theme() {
@@ -255,6 +219,119 @@ start_watching() {
     done
 }
 
+# Start systemd service or daemon
+start_watcher() {
+    info "Starting omazed..."
+
+    # Check if systemd service exists
+    if [[ -f "$SERVICE_DIR/omazed.service" ]]; then
+        # Try to start systemd service first
+        if systemctl --user start omazed.service 2>/dev/null; then
+            success "Systemd service started ✓"
+
+            # Wait a moment and check if it's actually running
+            sleep 2
+            if systemctl --user is-active --quiet omazed.service; then
+                success "Service is running successfully"
+                return 0
+            else
+                warn "Service started but may have stopped - check logs with:"
+                warn "  journalctl --user -u omazed.service -f"
+                return 1
+            fi
+        else
+            warn "Failed to start systemd service, trying daemon mode..."
+        fi
+    else
+        info "No systemd service found, starting as daemon..."
+    fi
+
+    # Fallback to daemon mode
+    if [[ -f "$LOCK_FILE" ]]; then
+        local pid
+        pid=$(cat "$LOCK_FILE" 2>/dev/null || echo "")
+        if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+            warn "Omazed is already running (PID: $pid)"
+            return 0
+        else
+            rm -f "$LOCK_FILE"
+        fi
+    fi
+
+    # Start as background daemon
+    info "Starting omazed as background daemon..."
+    create_lock
+    start_watching >> "$LOG_FILE" 2>&1 &
+    echo $! > "$LOCK_FILE"
+    success "Daemon started in background ✓"
+}
+
+# Check status of omazed
+check_status() {
+    info "Checking omazed status..."
+
+    local running=false
+
+    # Check systemd service
+    if systemctl --user is-active --quiet omazed.service 2>/dev/null; then
+        success "Systemd service: running ✓"
+        running=true
+
+        # Show service info
+        info "Service status:"
+        systemctl --user status omazed.service --no-pager -l || true
+    elif systemctl --user list-unit-files --quiet | grep -q "omazed.service"; then
+        warn "Systemd service: stopped"
+        info "Start with: omazed start"
+    else
+        info "Systemd service: not installed"
+    fi
+
+    # Check for daemon processes
+    if [[ -f "$LOCK_FILE" ]]; then
+        local pid
+        pid=$(cat "$LOCK_FILE" 2>/dev/null || echo "")
+        if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+            success "Daemon process: running (PID: $pid) ✓"
+            running=true
+        else
+            warn "Daemon lock file exists but process not running"
+            info "Clean up with: omazed stop"
+        fi
+    fi
+
+    # Check for other processes
+    local other_pids
+    other_pids=$(pgrep -f "omazed watch" 2>/dev/null | grep -v "$$" || true)
+    if [[ -n "$other_pids" ]]; then
+        success "Other omazed processes found: $other_pids ✓"
+        running=true
+    fi
+
+    # Check configuration
+    if [[ -f "$OMARCHY_THEME_PATH" ]]; then
+        local current_theme
+        current_theme=$(get_current_theme)
+        if [[ -n "$current_theme" ]]; then
+            info "Current Omarchy theme: $current_theme"
+        else
+            warn "Could not detect current theme"
+        fi
+    else
+        warn "Omarchy theme file not found: $OMARCHY_THEME_PATH"
+    fi
+
+    # Overall status
+    if [[ "$running" == "true" ]]; then
+        success "Overall status: omazed is running ✓"
+        return 0
+    else
+        warn "Overall status: omazed is not running"
+        info "Start with: omazed start"
+        return 1
+    fi
+}
+
 # Test current setup
 test_setup() {
     info "Testing current setup..."
@@ -308,27 +385,66 @@ test_setup() {
     return 0
 }
 
+
+
 # Stop any running instance
 stop_watcher() {
+    local stopped_any=false
+
+    # Check if systemd service is running
+    if systemctl --user is-active --quiet omazed.service 2>/dev/null; then
+        info "Stopping omazed systemd service..."
+        if systemctl --user stop omazed.service; then
+            success "Systemd service stopped ✓"
+            stopped_any=true
+        else
+            error "Failed to stop systemd service"
+        fi
+    fi
+
+    # Check for manually started instances with lock file
     if [[ -f "$LOCK_FILE" ]]; then
         local pid
         pid=$(cat "$LOCK_FILE" 2>/dev/null || echo "")
         if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
-            info "Stopping running omazed (PID: $pid)"
-            kill "$pid"
+            info "Stopping running omazed daemon (PID: $pid)"
+            # Kill the process group to clean up child processes (including inotifywait)
+            kill -TERM -"$pid" 2>/dev/null || kill "$pid"
             sleep 1
             if kill -0 "$pid" 2>/dev/null; then
-                warn "Force killing omazed"
-                kill -9 "$pid" 2>/dev/null || true
+                warn "Force killing omazed daemon"
+                kill -9 -"$pid" 2>/dev/null || kill -9 "$pid" 2>/dev/null || true
             fi
             rm -f "$LOCK_FILE"
-            success "Omazed stopped"
+            success "Daemon stopped ✓"
+            stopped_any=true
         else
             warn "Stale omazed lock file removed"
             rm -f "$LOCK_FILE"
         fi
-    else
-        info "No running omazed found"
+    fi
+
+    # Check for any other omazed processes
+    local other_pids
+    other_pids=$(pgrep -f "omazed watch" 2>/dev/null | grep -v "$$" || true)
+    if [[ -n "$other_pids" ]]; then
+        info "Found other omazed processes, stopping them..."
+        echo "$other_pids" | while read -r pid; do
+            if kill -0 "$pid" 2>/dev/null; then
+                info "Stopping omazed process (PID: $pid)"
+                kill "$pid" 2>/dev/null || true
+                stopped_any=true
+            fi
+        done
+        success "Other processes stopped ✓"
+    fi
+
+    # Note: We don't kill inotifywait processes directly since other scripts
+    # might be watching the same directory. The parent omazed process kill
+    # should clean up its child inotifywait processes automatically.
+
+    if [[ "$stopped_any" == "false" ]]; then
+        info "No running omazed instances found"
     fi
 }
 
@@ -365,10 +481,11 @@ USAGE:
     $0 [COMMAND] [OPTIONS]
 
 COMMANDS:
-    install     Install themes to Zed and set up sync
-    watch       Start watching for theme changes (default)
-    test        Test current setup
+    start       Start the theme watcher (systemd service)
+    status      Check if omazed is running
     stop        Stop any running watcher
+    watch       Start watching for theme changes
+    test        Test current setup
     sync        Sync theme once and exit
 
 OPTIONS:
@@ -380,14 +497,22 @@ EOF
 
 # Main function
 main() {
-    local command="watch"
+    local command="status"
     local daemon=false
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
-            install)
-                command="install"
+            start)
+                command="start"
+                shift
+                ;;
+            status)
+                command="status"
+                shift
+                ;;
+            stop)
+                command="stop"
                 shift
                 ;;
             watch)
@@ -398,14 +523,11 @@ main() {
                 command="test"
                 shift
                 ;;
-            stop)
-                command="stop"
-                shift
-                ;;
             sync)
                 command="sync"
                 shift
                 ;;
+
             -d|--daemon)
                 daemon=true
                 shift
@@ -424,18 +546,18 @@ main() {
 
     # Execute command
     case $command in
-        install)
-            info "Installing Omazed (live theme switching for zed in omarchy)..."
-            check_deps
-            install_themes
-            success "Installation complete! Run '$0' to start watching."
+        start)
+            start_watcher
+            ;;
+        status)
+            check_status
+            ;;
+        stop)
+            stop_watcher
             ;;
         test)
             check_deps
             test_setup
-            ;;
-        stop)
-            stop_watcher
             ;;
         sync)
             check_deps

@@ -17,6 +17,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN_DIR="$HOME/.local/bin"
 SERVICE_DIR="$HOME/.config/systemd/user"
 SYNC_SCRIPT="omazed"
+ZED_THEMES_DIR="$HOME/.config/zed/themes"
 
 log() { echo -e "${GREEN}[INFO]${NC} $*"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
@@ -122,15 +123,39 @@ install_script() {
 install_themes() {
     log "Installing themes to Zed..."
 
-    # Use the original script to install themes (has correct path to themes)
-    if "$SCRIPT_DIR/$SYNC_SCRIPT" install; then
-        log "Themes installed successfully ✓"
+    # Create Zed themes directory
+    mkdir -p "$ZED_THEMES_DIR"
+
+    if [[ ! -d "$SCRIPT_DIR/themes" ]]; then
+        error "Themes directory not found: $SCRIPT_DIR/themes"
+        return 1
+    fi
+
+    local installed_count=0
+
+    for theme_file in "$SCRIPT_DIR/themes"/*.json; do
+        if [[ -f "$theme_file" ]]; then
+            local basename=$(basename "$theme_file")
+
+            # Validate JSON
+            if jq empty "$theme_file" 2>/dev/null; then
+                cp "$theme_file" "$ZED_THEMES_DIR/"
+                log "Installed theme: $basename"
+                installed_count=$((installed_count + 1))
+            else
+                warn "Skipping invalid JSON: $basename"
+            fi
+        fi
+    done
+
+    if [[ $installed_count -gt 0 ]]; then
+        log "Installed $installed_count theme(s) to $ZED_THEMES_DIR"
+        return 0
     else
-        error "Theme installation failed"
+        error "No themes were installed"
         return 1
     fi
 }
-
 create_systemd_service() {
     log "Setting up automatic theme sync..."
 
@@ -176,7 +201,7 @@ print_completion() {
 📋 WHAT WAS INSTALLED:
    • Sync script: $BIN_DIR/$SYNC_SCRIPT
    • Zed themes: ~/.config/zed/themes/
-   • Systemd service (optional)
+   • Systemd service
 
 ✅ LIVE THEME SWITCHING IS NOW ACTIVE!
 
@@ -185,10 +210,10 @@ print_completion() {
 
 🔧 MANUAL COMMANDS (if needed):
    # Test setup:
-   $BIN_DIR/$SYNC_SCRIPT test
+   omazed test
 
    # Manual sync:
-   $BIN_DIR/$SYNC_SCRIPT sync
+   omazed sync
 
 📊 SERVICE MANAGEMENT:
    systemctl --user status omazed.service
