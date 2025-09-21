@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Test script for Omarchy Theme Extension
-# Verifies all functionality before deployment
+# Test script for Omazed
+# Live theme switching for zed in omarchy - verifies all functionality before deployment
 
 set -euo pipefail
 
@@ -14,7 +14,7 @@ NC='\033[0m'
 
 # Test configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TEST_DIR="/tmp/omarchy-theme-test-$$"
+TEST_DIR="/tmp/omazed-test-$$"
 OMARCHY_TEST_PATH="$TEST_DIR/.config/omarchy/current"
 ZED_TEST_PATH="$TEST_DIR/.config/zed"
 ORIGINAL_HOME="$HOME"
@@ -112,7 +112,7 @@ test_theme_detection() {
     echo "tokyo-night" > "$OMARCHY_TEST_PATH/theme"
 
     # Source the theme detection function from watcher script
-    if [[ -f "$SCRIPT_DIR/theme-watcher.sh" ]]; then
+    if [[ -f "$SCRIPT_DIR/omazed" ]]; then
         # Extract theme detection logic
         local detected_theme
         detected_theme=$(HOME="$TEST_DIR" bash -c '
@@ -128,7 +128,7 @@ test_theme_detection() {
             error "Theme detection failed. Expected 'tokyo-night', got '$detected_theme'"
         fi
     else
-        warn "theme-watcher.sh not found, skipping theme detection test"
+        warn "omazed not found, skipping theme detection test"
     fi
 
     # Test with symlink
@@ -264,21 +264,21 @@ test_file_watching() {
 test_watcher_syntax() {
     info "Testing watcher script syntax..."
 
-    if [[ -f "$SCRIPT_DIR/theme-watcher.sh" ]]; then
-        if bash -n "$SCRIPT_DIR/theme-watcher.sh"; then
-            log "Watcher script syntax is valid"
+    if [[ -f "$SCRIPT_DIR/omazed" ]]; then
+        if bash -n "$SCRIPT_DIR/omazed"; then
+            log "Sync script syntax is valid"
         else
-            error "Watcher script has syntax errors"
+            error "Sync script has syntax errors"
         fi
 
         # Test with --test flag if possible
-        if timeout 5s "$SCRIPT_DIR/theme-watcher.sh" --help >/dev/null 2>&1; then
-            log "Watcher script help works"
+        if timeout 5s "$SCRIPT_DIR/omazed" --help >/dev/null 2>&1; then
+            log "Sync script help works"
         else
-            warn "Watcher script help test failed"
+            warn "Sync script help test failed"
         fi
     else
-        error "theme-watcher.sh not found"
+        error "omazed not found"
     fi
 }
 
@@ -286,24 +286,24 @@ test_watcher_syntax() {
 test_service_file() {
     info "Testing systemd service file..."
 
-    if [[ -f "$SCRIPT_DIR/omarchy-theme-watcher.service" ]]; then
+    if [[ -f "$SCRIPT_DIR/omazed.service" ]]; then
         # Basic syntax check
-        if systemd-analyze verify "$SCRIPT_DIR/omarchy-theme-watcher.service" 2>/dev/null; then
+        if systemd-analyze verify "$SCRIPT_DIR/omazed.service" 2>/dev/null; then
             log "Systemd service file is valid"
         else
             warn "Systemd service file validation failed"
         fi
 
         # Check for required sections
-        if grep -q "\[Unit\]" "$SCRIPT_DIR/omarchy-theme-watcher.service" &&
-           grep -q "\[Service\]" "$SCRIPT_DIR/omarchy-theme-watcher.service" &&
-           grep -q "\[Install\]" "$SCRIPT_DIR/omarchy-theme-watcher.service"; then
+        if grep -q "\[Unit\]" "$SCRIPT_DIR/omazed.service" &&
+           grep -q "\[Service\]" "$SCRIPT_DIR/omazed.service" &&
+           grep -q "\[Install\]" "$SCRIPT_DIR/omazed.service"; then
             log "Service file has required sections"
         else
             error "Service file missing required sections"
         fi
     else
-        error "omarchy-theme-watcher.service not found"
+        error "omazed.service not found"
     fi
 }
 
@@ -373,10 +373,10 @@ print_summary() {
     echo
 
     if [[ $TESTS_FAILED -eq 0 ]]; then
-        echo -e "${GREEN}🎉 All tests passed! The extension is ready for use.${NC}"
+        echo -e "${GREEN}🎉 All tests passed! Omazed is ready for use.${NC}"
         return 0
     else
-        echo -e "${RED}❌ Some tests failed. Please fix the issues before using the extension.${NC}"
+        echo -e "${RED}❌ Some tests failed. Please fix the issues before using Omazed.${NC}"
         return 1
     fi
 }
@@ -384,7 +384,8 @@ print_summary() {
 # Main test function
 main() {
     echo "╔═══════════════════════════════════════════════════════════╗"
-    echo "║                 OMARCHY THEME EXTENSION                   ║"
+    echo "║                        OMAZED                            ║"
+    echo "║          Live theme switching for zed in omarchy          ║"
     echo "║                      TEST SUITE                          ║"
     echo "╚═══════════════════════════════════════════════════════════╝"
     echo

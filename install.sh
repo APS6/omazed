@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Simple installation script for Omarchy Zed Theme Sync
-# No extension complexity - just installs themes and sets up the sync tool
+# Simple installation script for Omazed
+# Live theme switching for zed in omarchy - just installs themes and sets up the sync tool
 
 set -euo pipefail
 
@@ -16,7 +16,7 @@ NC='\033[0m'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN_DIR="$HOME/.local/bin"
 SERVICE_DIR="$HOME/.config/systemd/user"
-SYNC_SCRIPT="omarchy-zed-theme-sync.sh"
+SYNC_SCRIPT="omazed"
 
 log() { echo -e "${GREEN}[INFO]${NC} $*"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
@@ -27,8 +27,8 @@ print_banner() {
     cat << 'EOF'
 ╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║
-║              Omarchy Zed Theme Sync                       ║
-║              Simple Installation                          ║
+║                        Omazed                             ║
+║           Live theme switching for zed in omarchy         ║
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
 EOF
@@ -135,22 +135,22 @@ create_systemd_service() {
     log "Setting up automatic theme sync..."
 
     mkdir -p "$SERVICE_DIR"
-    cp "$SCRIPT_DIR/omarchy-zed-sync.service" "$SERVICE_DIR/"
+    cp "$SCRIPT_DIR/omazed.service" "$SERVICE_DIR/"
 
     # Update paths in service file
-    sed -i "s|%h|$HOME|g" "$SERVICE_DIR/omarchy-zed-sync.service"
+    sed -i "s|%h|$HOME|g" "$SERVICE_DIR/omazed.service"
 
     # Enable and start service automatically
     systemctl --user daemon-reload
-    systemctl --user enable omarchy-zed-sync.service
-    systemctl --user start omarchy-zed-sync.service
+    systemctl --user enable omazed.service
+    systemctl --user start omazed.service
     sleep 2
 
-    if systemctl --user is-active --quiet omarchy-zed-sync.service; then
+    if systemctl --user is-active --quiet omazed.service; then
         log "Automatic theme sync enabled ✓"
     else
         warn "Service setup failed - you can start manually with:"
-        warn "  systemctl --user start omarchy-zed-sync.service"
+        warn "  systemctl --user start omazed.service"
     fi
 }
 
@@ -171,14 +171,14 @@ print_completion() {
 ║                  INSTALLATION COMPLETE!                  ║
 ╚═══════════════════════════════════════════════════════════╝
 
-🎉 Omarchy Zed Theme Sync is ready!
+🎉 Omazed is ready for live theme switching!
 
 📋 WHAT WAS INSTALLED:
    • Sync script: $BIN_DIR/$SYNC_SCRIPT
    • Zed themes: ~/.config/zed/themes/
    • Systemd service (optional)
 
-✅ AUTOMATIC SYNC IS NOW RUNNING!
+✅ LIVE THEME SWITCHING IS NOW ACTIVE!
 
    Your Zed theme will automatically change when you change your Omarchy theme.
    No further action needed!
@@ -191,8 +191,8 @@ print_completion() {
    $BIN_DIR/$SYNC_SCRIPT sync
 
 📊 SERVICE MANAGEMENT:
-   systemctl --user status omarchy-zed-sync.service
-   systemctl --user restart omarchy-zed-sync.service
+   systemctl --user status omazed.service
+   systemctl --user restart omazed.service
 
 🎨 Try it: Change your Omarchy theme and watch Zed follow along automatically!
 
@@ -213,13 +213,13 @@ main() {
     test_installation
 
     print_completion
-    log "Installation completed! Theme sync is now running automatically! 🎉"
+    log "Installation completed! Live theme switching is now active! 🎉"
 }
 
 # Handle help
 if [[ "${1:-}" == "-h" ]] || [[ "${1:-}" == "--help" ]]; then
     cat << EOF
-Omarchy Zed Theme Sync Installer
+Omazed Installer - Live theme switching for zed in omarchy
 
 USAGE: $0 [OPTIONS]
 

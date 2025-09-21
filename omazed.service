@@ -1,6 +1,6 @@
 [Unit]
-Description=Omarchy Zed Theme Sync
-Documentation=https://github.com/aps6/omarchy-theme-zed
+Description=Omazed - Live theme switching for zed in omarchy
+Documentation=https://github.com/aps/omazed
 After=graphical-session.target xdg-desktop-portal.service
 Wants=graphical-session.target
 StartLimitBurst=3
@@ -8,7 +8,7 @@ StartLimitIntervalSec=60
 
 [Service]
 Type=simple
-ExecStart=%h/.local/bin/omarchy-zed-theme-sync.sh watch
+ExecStart=%h/.local/bin/omazed watch
 Restart=on-failure
 RestartSec=10
 Environment=HOME=%h

@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Omarchy Theme Extension Uninstaller
-# Cleanly removes the Zed extension and all associated components
+# Omazed Uninstaller
+# Cleanly removes the live theme switching tool and all associated components
 
 set -euo pipefail
 
@@ -14,12 +14,12 @@ NC='\033[0m' # No Color
 
 # Configuration
 BIN_DIR="$HOME/.local/bin"
-INSTALL_DIR="$HOME/.local/share/omarchy-zed-sync"
+INSTALL_DIR="$HOME/.local/share/omazed"
 SERVICE_DIR="$HOME/.config/systemd/user"
-SYNC_SCRIPT="$BIN_DIR/omarchy-zed-theme-sync.sh"
-SERVICE_FILE="$SERVICE_DIR/omarchy-zed-sync.service"
+SYNC_SCRIPT="$BIN_DIR/omazed"
+SERVICE_FILE="$SERVICE_DIR/omazed.service"
 LOG_FILE="$INSTALL_DIR/uninstall.log"
-LOCK_FILE="/tmp/omarchy-zed-sync.lock"
+LOCK_FILE="/tmp/omazed.lock"
 
 # Ensure log directory exists for this run
 mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
@@ -46,7 +46,7 @@ print_banner() {
     cat << 'EOF'
 ╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║
-║               Omarchy Zed Theme Uninstaller               ║
+║                     Omazed Uninstaller                   ║
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
 EOF
@@ -70,11 +70,11 @@ check_installation() {
         found_components+=("Installation Directory")
     fi
 
-    if systemctl --user is-enabled omarchy-zed-sync.service >/dev/null 2>&1; then
+    if systemctl --user is-enabled omazed.service >/dev/null 2>&1; then
         found_components+=("Enabled Service")
     fi
 
-    if systemctl --user is-active omarchy-zed-sync.service >/dev/null 2>&1; then
+    if systemctl --user is-active omazed.service >/dev/null 2>&1; then
         found_components+=("Running Service")
     fi
 
@@ -92,9 +92,9 @@ remove_service() {
     info "Removing systemd service..."
 
     # Stop the service if running
-    if systemctl --user is-active --quiet omarchy-zed-sync.service 2>/dev/null; then
-        log "Stopping omarchy-zed-sync service..."
-        if systemctl --user stop omarchy-zed-sync.service; then
+    if systemctl --user is-active --quiet omazed.service 2>/dev/null; then
+        log "Stopping omazed service..."
+        if systemctl --user stop omazed.service; then
             log "Service stopped successfully ✓"
         else
             warn "Failed to stop service gracefully"
@@ -102,9 +102,9 @@ remove_service() {
     fi
 
     # Disable the service if enabled
-    if systemctl --user is-enabled --quiet omarchy-zed-sync.service 2>/dev/null; then
-        log "Disabling omarchy-zed-sync service..."
-        if systemctl --user disable omarchy-zed-sync.service; then
+    if systemctl --user is-enabled --quiet omazed.service 2>/dev/null; then
+        log "Disabling omazed service..."
+        if systemctl --user disable omazed.service; then
             log "Service disabled successfully ✓"
         else
             warn "Failed to disable service"
@@ -215,8 +215,8 @@ cleanup_config() {
 
     # Check if Zed settings were modified
     local zed_settings="$HOME/.config/zed/settings.json"
-    if [[ -f "$zed_settings" ]] && grep -q "omarchy" "$zed_settings" 2>/dev/null; then
-        warn "Zed settings may contain omarchy-related themes"
+    if [[ -f "$zed_settings" ]] && grep -q "omazed\|omarchy" "$zed_settings" 2>/dev/null; then
+        warn "Zed settings may contain omazed-related themes"
         info "You may want to manually review: $zed_settings"
     fi
 
@@ -228,7 +228,7 @@ create_backup() {
     if [[ "${CREATE_BACKUP:-true}" == "true" ]]; then
         info "Creating backup of configuration files..."
 
-        local backup_dir="$HOME/.local/share/omarchy-theme-backup-$(date +%Y%m%d-%H%M%S)"
+        local backup_dir="$HOME/.local/share/omazed-backup-$(date +%Y%m%d-%H%M%S)"
         mkdir -p "$backup_dir"
 
         # Backup service file
@@ -263,7 +263,7 @@ print_completion() {
 ║                  UNINSTALLATION COMPLETE!                ║
 ╚═══════════════════════════════════════════════════════════╝
 
-🗑️  Omarchy Zed Theme Sync has been removed successfully!
+🗑️  Omazed has been removed successfully!
 
 📋 WHAT WAS REMOVED:
 
@@ -285,7 +285,7 @@ print_completion() {
    Run the install script again:
    ./install.sh
 
-Thanks for using Omarchy Zed Theme Sync! 👋
+Thanks for using Omazed! 👋
 
 EOF
 }
@@ -324,7 +324,7 @@ main() {
                 ;;
             -h|--help)
                 cat << EOF
-Omarchy Theme Extension Uninstaller
+Omazed Uninstaller - Live theme switching for zed in omarchy
 
 Usage: $0 [OPTIONS]
 
@@ -348,18 +348,18 @@ EOF
         esac
     done
 
-    log "Starting Omarchy Theme Extension uninstallation..."
+    log "Starting Omazed uninstallation..."
 
     # Check what's installed
     if ! check_installation; then
-        info "Nothing to uninstall. Extension appears to already be removed."
+        info "Nothing to uninstall. Omazed appears to already be removed."
         exit 0
     fi
 
     # Confirm uninstallation
     if [[ "$force" != "true" && "$yes" != "true" ]]; then
         echo
-        read -p "Are you sure you want to uninstall the Omarchy Theme Extension? (y/N): " -r
+        read -p "Are you sure you want to uninstall Omazed? (y/N): " -r
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             info "Uninstallation cancelled by user"
             exit 0

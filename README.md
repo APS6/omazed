@@ -1,16 +1,16 @@
-# Omarchy Zed Theme Sync
+# Omazed
 
-Automatically synchronize your Zed editor theme with your Omarchy system theme.
+Live theme switching for Zed in Omarchy - automatically synchronize your Zed editor theme with your Omarchy system theme.
 
 ## Overview
 
-This tool watches your Omarchy theme file (`~/.config/omarchy/current/theme`) and automatically updates Zed's theme to match.
+Omazed watches your Omarchy theme file (`~/.config/omarchy/current/theme`) and automatically updates Zed's theme to match in real-time.
 
 ## Features
 
-- 🎨 **Automatic Theme Sync**: Zed theme changes instantly when you change your Omarchy system theme
+- 🎨 **Live Theme Switching**: Zed theme changes instantly when you change your Omarchy system theme
 - 🔄 **Real-time Monitoring**: Uses `inotifywait` for immediate file system event detection
-- ⚡ **Lightweight**: Simple bash script and systemd service.
+- ⚡ **Lightweight**: Simple bash script and systemd service
 - 🛠️ **Easy Setup**: One-command installation
 
 ## Requirements
@@ -25,14 +25,15 @@ This tool watches your Omarchy theme file (`~/.config/omarchy/current/theme`) an
 ```bash
 # Arch Linux / Omarchy
 sudo pacman -S inotify-tools jq
+```
 
 ## Installation
 
 ### Quick Install
 
 ```bash
-git clone https://github.com/aps/omarchy-theme-zed.git
-cd omarchy-theme-zed
+git clone https://github.com/aps/omazed.git
+cd omazed
 ./install.sh
 ```
 
@@ -42,37 +43,37 @@ This will:
 3. Set up systemd service for auto-start
 4. Test the installation
 
-Voila! Live theme sync should now work automatically.
+Voila! Live theme switching should now work automatically.
 
 ## Usage
 
-### Other Commands
+### Commands
 ```bash
 # Install themes to Zed
-omarchy-zed-theme-sync.sh install # This is automatically done by install.sh
+omazed install # This is automatically done by install.sh
 
 # Test current setup
-omarchy-zed-theme-sync.sh test
+omazed test
 
 # Sync theme once and exit
-omarchy-zed-theme-sync.sh sync
+omazed sync
 
 # Stop running daemon
-omarchy-zed-theme-sync.sh stop
+omazed stop
 ```
 
 ### Systemd Service
 ```bash
 # Check service status
-systemctl --user status omarchy-zed-sync.service
+systemctl --user status omazed.service
 
 # Start/stop service
-systemctl --user start omarchy-zed-sync.service
-systemctl --user stop omarchy-zed-sync.service
+systemctl --user start omazed.service
+systemctl --user stop omazed.service
 
 # Enable/disable auto-start
-systemctl --user enable omarchy-zed-sync.service
-systemctl --user disable omarchy-zed-sync.service
+systemctl --user enable omazed.service
+systemctl --user disable omazed.service
 ```
 
 ## How It Works
@@ -102,7 +103,7 @@ The following default Omarchy themes are included:
 ### Adding Custom Themes
 
 1. Add your `.json` theme file to the `themes/` directory
-2. Run `omarchy-zed-theme-sync.sh install` to copy it to Zed
+2. Run `omazed install` to copy it to Zed
 3. The sync script will automatically use it when that theme is active
 
 ## Troubleshooting
@@ -111,26 +112,26 @@ The following default Omarchy themes are included:
 
 ```bash
 # Test the setup
-omarchy-zed-theme-sync.sh test
+omazed test
 
 # Check if Omarchy theme file exists
 ls -la ~/.config/omarchy/current/theme
 
 # Manually sync
-omarchy-zed-theme-sync.sh sync
+omazed sync
 ```
 
 ### Service Not Starting
 
 ```bash
 # Check service logs
-journalctl --user -u omarchy-zed-sync.service -f
+journalctl --user -u omazed.service -f
 
 # Check service status
-systemctl --user status omarchy-zed-sync.service
+systemctl --user status omazed.service
 
 # Restart service
-systemctl --user restart omarchy-zed-sync.service
+systemctl --user restart omazed.service
 ```
 
 ### Dependencies Issues
@@ -148,13 +149,13 @@ Use the uninstall script:
 Or remove manually:
 ```bash
 # Stop and disable service
-systemctl --user stop omarchy-zed-sync.service
-systemctl --user disable omarchy-zed-sync.service
+systemctl --user stop omazed.service
+systemctl --user disable omazed.service
 
 # Remove files
-rm -f ~/.local/bin/omarchy-zed-theme-sync.sh
-rm -f ~/.config/systemd/user/omarchy-zed-sync.service
-rm -rf ~/.local/share/omarchy-zed-sync/
+rm -f ~/.local/bin/omazed
+rm -f ~/.config/systemd/user/omazed.service
+rm -rf ~/.local/share/omazed/
 
 # Remove themes (optional)
 rm -rf ~/.config/zed/themes/
@@ -162,5 +163,5 @@ rm -rf ~/.config/zed/themes/
 
 ## Support
 
-- 🐛 **Issues**: [GitHub Issues](https://github.com/aps/omarchy-theme-zed/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/aps/omarchy-theme-zed/discussions)
+- 🐛 **Issues**: [GitHub Issues](https://github.com/aps/omazed/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/aps/omazed/discussions)
