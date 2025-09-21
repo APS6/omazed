@@ -1,0 +1,15 @@
+[Unit]
+Description=Omarchy Zed Theme Sync
+Documentation=https://github.com/aps/omarchy-theme-zed
+After=graphical-session.target
+Wants=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/omarchy-zed-theme-sync.sh watch
+Restart=always
+RestartSec=5
+Environment=HOME=%h
+
+[Install]
+WantedBy=default.target
