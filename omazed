@@ -46,15 +46,13 @@ error() {
 check_deps() {
     local missing=()
 
-    for cmd in inotifywait jq; do
-        if ! command -v "$cmd" >/dev/null 2>&1; then
-            missing+=("$cmd")
-        fi
-    done
+    if ! command -v inotifywait >/dev/null 2>&1; then
+        missing+=("inotifywait")
+    fi
 
     if [[ ${#missing[@]} -gt 0 ]]; then
         error "Missing dependencies: ${missing[*]}"
-        info "Install with: sudo pacman -S inotify-tools jq"
+        info "Install with: sudo pacman -S inotify-tools"
         exit 1
     fi
 
@@ -328,8 +326,10 @@ test_setup() {
     zed_theme=$(map_theme_name "$current_theme")
     success "Theme mapping: $current_theme → $zed_theme"
 
-    # Test JSON manipulation
-    if echo '{}' | jq '.theme = "test"' >/dev/null 2>&1; then
+    # Test JSON manipulation with sed
+    local test_json='{"theme": "old_theme"}'
+    local updated_json=$(echo "$test_json" | sed 's/"theme"[[:space:]]*:[[:space:]]*"[^"]*"/"theme": "test"/')
+    if echo "$updated_json" | grep -q '"theme": "test"'; then
         success "JSON manipulation working"
     else
         error "JSON manipulation failed"

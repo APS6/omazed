@@ -44,10 +44,6 @@ check_dependencies() {
         missing+=("inotify-tools")
     fi
 
-    if ! command -v jq >/dev/null 2>&1; then
-        missing+=("jq")
-    fi
-
     if [[ ${#missing[@]} -gt 0 ]]; then
         error "Missing dependencies: ${missing[*]}"
         info "Install with: sudo pacman -S ${missing[*]}"
@@ -136,15 +132,9 @@ install_themes() {
     for theme_file in "$SCRIPT_DIR/themes"/*.json; do
         if [[ -f "$theme_file" ]]; then
             local basename=$(basename "$theme_file")
-
-            # Validate JSON
-            if jq empty "$theme_file" 2>/dev/null; then
-                cp "$theme_file" "$ZED_THEMES_DIR/"
-                log "Installed theme: $basename"
-                installed_count=$((installed_count + 1))
-            else
-                warn "Skipping invalid JSON: $basename"
-            fi
+            cp "$theme_file" "$ZED_THEMES_DIR/"
+            log "Installed theme: $basename"
+            installed_count=$((installed_count + 1))
         fi
     done
 
@@ -261,7 +251,7 @@ OPTIONS:
     -h, --help    Show this help
 
 This script:
-1. Checks for required dependencies (inotify-tools, jq)
+1. Checks for required dependencies (inotify-tools)
 2. Installs the sync script to ~/.local/bin/
 3. Copies themes to ~/.config/zed/themes/
 4. Sets up systemd service for auto-start

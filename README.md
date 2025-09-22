@@ -18,13 +18,12 @@ Omazed watches your Omarchy theme file (`~/.config/omarchy/current/theme`) and a
 - Omarchy
 - Zed editor
 - `inotify-tools`
-- `jq` (comes pre-installed with omarchy)
 
 ### Install Dependencies
 
 ```bash
 # Arch Linux / Omarchy
-sudo pacman -S inotify-tools jq
+sudo pacman -S inotify-tools
 ```
 
 ## Installation
@@ -128,7 +127,7 @@ omazed sync
 
 ```bash
 # Verify dependencies are installed
-which inotifywait jq
+which inotifywait
 ```
 
 ## Uninstallation
