@@ -25,19 +25,19 @@ mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
 
 # Logging functions
 log() {
-    echo -e "${GREEN}[INFO]${NC} $*" | tee -a "$LOG_FILE" 2>/dev/null || echo -e "${GREEN}[INFO]${NC} $*"
+    echo -e "${GREEN}[INFO]${NC} $*" | tee -a "$LOG_FILE" 2>/dev/null || true
 }
 
 warn() {
-    echo -e "${YELLOW}[WARN]${NC} $*" | tee -a "$LOG_FILE" 2>/dev/null || echo -e "${YELLOW}[WARN]${NC} $*"
+    echo -e "${YELLOW}[WARN]${NC} $*" | tee -a "$LOG_FILE" 2>/dev/null || true
 }
 
 error() {
-    echo -e "${RED}[ERROR]${NC} $*" | tee -a "$LOG_FILE" 2>/dev/null || echo -e "${RED}[ERROR]${NC} $*"
+    echo -e "${RED}[ERROR]${NC} $*" | tee -a "$LOG_FILE" 2>/dev/null || true
 }
 
 info() {
-    echo -e "${BLUE}[INFO]${NC} $*" | tee -a "$LOG_FILE" 2>/dev/null || echo -e "${BLUE}[INFO]${NC} $*"
+    echo -e "${BLUE}[INFO]${NC} $*" | tee -a "$LOG_FILE" 2>/dev/null || true
 }
 
 # Print banner

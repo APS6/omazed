@@ -26,19 +26,19 @@ log() {
 }
 
 info() {
-    echo -e "${BLUE}[INFO]${NC} $*" | tee -a "$LOG_FILE" 2>/dev/null || echo -e "${BLUE}[INFO]${NC} $*"
+    echo -e "${BLUE}[INFO]${NC} $*" | tee -a "$LOG_FILE" 2>/dev/null || true
 }
 
 success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $*" | tee -a "$LOG_FILE" 2>/dev/null || echo -e "${GREEN}[SUCCESS]${NC} $*"
+    echo -e "${GREEN}[SUCCESS]${NC} $*" | tee -a "$LOG_FILE" 2>/dev/null || true
 }
 
 warn() {
-    echo -e "${YELLOW}[WARN]${NC} $*" | tee -a "$LOG_FILE" 2>/dev/null || echo -e "${YELLOW}[WARN]${NC} $*"
+echo -e "${YELLOW}[WARN]${NC} $*" | tee -a "$LOG_FILE" 2>/dev/null || true
 }
 
 error() {
-    echo -e "${RED}[ERROR]${NC} $*" | tee -a "$LOG_FILE" 2>/dev/null || echo -e "${RED}[ERROR]${NC} $*"
+echo -e "${RED}[ERROR]${NC} $*" | tee -a "$LOG_FILE" 2>/dev/null || true
 }
 
 
@@ -260,7 +260,7 @@ check_status() {
         systemctl --user status omazed.service --no-pager -l || true
 
         # Check configuration
-        if [[ -f "$OMARCHY_THEME_PATH" ]]; then
+        if [[ -e "$OMARCHY_THEME_PATH" ]]; then
             local current_theme
             current_theme=$(get_current_theme)
             if [[ -n "$current_theme" ]]; then

@@ -19,7 +19,7 @@ SERVICE_DIR="$HOME/.config/systemd/user"
 SYNC_SCRIPT="omazed"
 ZED_THEMES_DIR="$HOME/.config/zed/themes"
 
-log() { echo -e "${GREEN}[INFO]${NC} $*"; }
+log() { echo -e " $* "; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 error() { echo -e "${RED}[ERROR]${NC} $*"; }
 info() { echo -e "${BLUE}[INFO]${NC} $*"; }
@@ -36,7 +36,6 @@ EOF
 }
 
 check_dependencies() {
-    log "Checking dependencies..."
 
     local missing=()
 
@@ -54,7 +53,6 @@ check_dependencies() {
 }
 
 check_zed() {
-    log "Checking for Zed editor..."
 
     # Try common Zed command names
     local zed_cmd=""
@@ -78,19 +76,9 @@ check_zed() {
 }
 
 check_omarchy() {
-    log "Checking Omarchy theme system..."
 
     if [[ -e "$HOME/.config/omarchy/current/theme" ]]; then
         log "Omarchy theme system found ✓"
-
-        # Show current theme if possible
-        if [[ -f "$HOME/.config/omarchy/current/theme" ]]; then
-            local current_theme
-            current_theme=$(cat "$HOME/.config/omarchy/current/theme" 2>/dev/null | tr -d '\n\r' || echo "")
-            if [[ -n "$current_theme" ]]; then
-                info "Current theme: $current_theme"
-            fi
-        fi
     else
         warn "Omarchy theme file not found"
         info "Expected: $HOME/.config/omarchy/current/theme"
@@ -102,7 +90,6 @@ check_omarchy() {
 }
 
 install_script() {
-    log "Installing sync script..."
 
     if [[ ! -f "$SCRIPT_DIR/$SYNC_SCRIPT" ]]; then
         error "Sync script not found: $SCRIPT_DIR/$SYNC_SCRIPT"
@@ -113,11 +100,10 @@ install_script() {
     cp "$SCRIPT_DIR/$SYNC_SCRIPT" "$BIN_DIR/"
     chmod +x "$BIN_DIR/$SYNC_SCRIPT"
 
-    log "Script installed to: $BIN_DIR/$SYNC_SCRIPT ✓"
+    log "Sync Script installed to: $BIN_DIR/$SYNC_SCRIPT ✓"
 }
 
 install_themes() {
-    log "Installing themes to Zed..."
 
     # Create Zed themes directory
     mkdir -p "$ZED_THEMES_DIR"
@@ -133,7 +119,6 @@ install_themes() {
         if [[ -f "$theme_file" ]]; then
             local basename=$(basename "$theme_file")
             cp "$theme_file" "$ZED_THEMES_DIR/"
-            log "Installed theme: $basename"
             installed_count=$((installed_count + 1))
         fi
     done
