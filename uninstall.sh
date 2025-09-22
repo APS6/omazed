@@ -19,7 +19,6 @@ SERVICE_DIR="$HOME/.config/systemd/user"
 SYNC_SCRIPT="$BIN_DIR/omazed"
 SERVICE_FILE="$SERVICE_DIR/omazed.service"
 LOG_FILE="$DATA_DIR/uninstall.log"
-LOCK_FILE="/tmp/omazed.lock"
 
 # Ensure log directory exists for this run
 mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
@@ -132,24 +131,6 @@ remove_service() {
 # Remove theme watcher script
 remove_sync_script() {
     info "Removing theme sync script..."
-
-    # Stop any running sync process
-    if [[ -f "$LOCK_FILE" ]]; then
-        local pid
-        pid=$(cat "$LOCK_FILE" 2>/dev/null || echo "")
-        if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
-            log "Stopping sync process (PID: $pid)..."
-            if kill "$pid" 2>/dev/null; then
-                sleep 1
-                if kill -0 "$pid" 2>/dev/null; then
-                    warn "Force killing sync process"
-                    kill -9 "$pid" 2>/dev/null || true
-                fi
-            fi
-        fi
-        rm -f "$LOCK_FILE"
-        log "Sync process stopped ✓"
-    fi
 
     # Remove the script
     if [[ -f "$SYNC_SCRIPT" ]]; then

@@ -62,7 +62,7 @@ check_zed() {
 
     # Try common Zed command names
     local zed_cmd=""
-    for cmd in zeditor zed; do
+    for cmd in zeditor zed zedit zed-editor; do
         if command -v "$cmd" >/dev/null 2>&1; then
             zed_cmd="$cmd"
             break
@@ -212,7 +212,7 @@ print_completion() {
    # Start the theme watcher (systemd service)
    omazed start
 
-   # Stop running systemd service and/or daemons
+   # Stop systemd service
    omazed stop
 
    # Check if omazed is running

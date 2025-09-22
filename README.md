@@ -52,7 +52,7 @@ Voila! Live theme switching should now work automatically.
 # Start the theme watcher (systemd service)
 omazed start
 
-# Stop running daemon and systemd service
+# Stop systemd service
 omazed stop
 
 # Check if omazed is running
@@ -106,8 +106,8 @@ The following default Omarchy themes are included:
 
 ### Adding Custom Themes
 
-1. Add your `.json` theme file to the `themes/` directory
-2. Run `omazed install` to copy it to Zed
+1. Add your `.json` theme file to the `~/.config/zed/themes` directory
+2. Ensure that the theme name matches the omarchy theme name (ex: Tokyo Night) and the file name is the theme name in lowercase separated by '-' (ex: tokyo-night).
 3. The sync script will automatically use it when that theme is active
 
 ## Troubleshooting
@@ -118,26 +118,12 @@ The following default Omarchy themes are included:
 # Test the setup
 omazed test
 
-# Check if Omarchy theme file exists
-ls -la ~/.config/omarchy/current/theme
-
 # Manually sync
 omazed sync
+
 ```
 
-### Service Not Starting
-
-```bash
-# Check service logs
-journalctl --user -u omazed.service -f
-
-# Check service status
-systemctl --user status omazed.service
-
-# Restart service
-systemctl --user restart omazed.service
-```
-
+1
 ### Dependencies Issues
 
 ```bash
