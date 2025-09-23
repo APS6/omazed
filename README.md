@@ -32,7 +32,7 @@ sudo pacman -S inotify-tools
 ### Quick Install
 
 ```bash
-git clone https://github.com/aps/omazed.git
+git clone https://github.com/aps6/omazed.git
 cd omazed
 ./install.sh
 ```
@@ -133,7 +133,6 @@ omazed sync
 
 ```
 
-1
 ### Dependencies Issues
 
 ```bash
@@ -163,5 +162,5 @@ rm -rf ~/.config/zed/themes/
 
 ## Support
 
-- 🐛 **Issues**: [GitHub Issues](https://github.com/aps/omazed/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/aps/omazed/discussions)
+- 🐛 **Issues**: [GitHub Issues](https://github.com/aps6/omazed/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/aps6/omazed/discussions)

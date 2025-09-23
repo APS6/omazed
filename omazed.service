@@ -1,6 +1,6 @@
 [Unit]
 Description=Omazed - Live theme switching for zed in omarchy
-Documentation=https://github.com/aps/omazed
+Documentation=https://github.com/aps6/omazed
 After=graphical-session.target xdg-desktop-portal.service
 Wants=graphical-session.target
 StartLimitBurst=3
