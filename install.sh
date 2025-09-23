@@ -17,6 +17,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN_DIR="$HOME/.local/bin"
 SERVICE_DIR="$HOME/.config/systemd/user"
 SYNC_SCRIPT="omazed"
+CONVERTER_SCRIPT="omazed-converter.sh"
 ZED_THEMES_DIR="$HOME/.config/zed/themes"
 
 log() { echo -e " $* "; }
@@ -96,11 +97,19 @@ install_script() {
         exit 1
     fi
 
+    if [[ ! -f "$SCRIPT_DIR/$CONVERTER_SCRIPT" ]]; then
+        error "Converter script not found: $SCRIPT_DIR/$CONVERTER_SCRIPT"
+        exit 1
+    fi
+
     mkdir -p "$BIN_DIR"
     cp "$SCRIPT_DIR/$SYNC_SCRIPT" "$BIN_DIR/"
+    cp "$SCRIPT_DIR/$CONVERTER_SCRIPT" "$BIN_DIR/"
     chmod +x "$BIN_DIR/$SYNC_SCRIPT"
+    chmod +x "$BIN_DIR/$CONVERTER_SCRIPT"
 
     log "Sync Script installed to: $BIN_DIR/$SYNC_SCRIPT ✓"
+    log "Converter Script installed to: $BIN_DIR/$CONVERTER_SCRIPT ✓"
 }
 
 install_themes() {
@@ -175,6 +184,7 @@ print_completion() {
 
 📋 WHAT WAS INSTALLED:
    • Sync script: $BIN_DIR/$SYNC_SCRIPT
+   • Converter script: $BIN_DIR/$CONVERTER_SCRIPT
    • Zed themes: ~/.config/zed/themes/
    • Systemd service
 

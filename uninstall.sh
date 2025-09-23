@@ -17,27 +17,24 @@ BIN_DIR="$HOME/.local/bin"
 DATA_DIR="$HOME/.local/share/omazed"
 SERVICE_DIR="$HOME/.config/systemd/user"
 SYNC_SCRIPT="$BIN_DIR/omazed"
+CONVERTER_SCRIPT="$BIN_DIR/omazed-converter.sh"
 SERVICE_FILE="$SERVICE_DIR/omazed.service"
-LOG_FILE="$DATA_DIR/uninstall.log"
-
-# Ensure log directory exists for this run
-mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
 
 # Logging functions
 log() {
-    echo -e "${GREEN}[INFO]${NC} $*" | tee -a "$LOG_FILE" 2>/dev/null || true
+    echo -e "${GREEN}[INFO]${NC} $*"
 }
 
 warn() {
-    echo -e "${YELLOW}[WARN]${NC} $*" | tee -a "$LOG_FILE" 2>/dev/null || true
+    echo -e "${YELLOW}[WARN]${NC} $*"
 }
 
 error() {
-    echo -e "${RED}[ERROR]${NC} $*" | tee -a "$LOG_FILE" 2>/dev/null || true
+    echo -e "${RED}[ERROR]${NC} $*"
 }
 
 info() {
-    echo -e "${BLUE}[INFO]${NC} $*" | tee -a "$LOG_FILE" 2>/dev/null || true
+    echo -e "${BLUE}[INFO]${NC} $*"
 }
 
 # Print banner
@@ -59,6 +56,10 @@ check_installation() {
 
     if [[ -f "$SYNC_SCRIPT" ]]; then
         found_components+=("Theme Sync Script")
+    fi
+
+    if [[ -f "$CONVERTER_SCRIPT" ]]; then
+        found_components+=("Theme Converter Script")
     fi
 
     if [[ -f "$SERVICE_FILE" ]]; then
@@ -128,16 +129,25 @@ remove_service() {
     fi
 }
 
-# Remove theme watcher script
+# Remove theme watcher script and converter
 remove_sync_script() {
     info "Removing theme sync script..."
 
-    # Remove the script
+    # Remove the sync script
     if [[ -f "$SYNC_SCRIPT" ]]; then
         if rm -f "$SYNC_SCRIPT"; then
             log "Theme sync script removed ✓"
         else
             error "Failed to remove theme sync script"
+        fi
+    fi
+
+    # Remove the converter script
+    if [[ -f "$CONVERTER_SCRIPT" ]]; then
+        if rm -f "$CONVERTER_SCRIPT"; then
+            log "Theme converter script removed ✓"
+        else
+            error "Failed to remove theme converter script"
         fi
     fi
 }
@@ -203,6 +213,7 @@ print_completion() {
 📋 WHAT WAS REMOVED:
 
    ✓ Theme sync script
+   ✓ Theme converter script
    ✓ Systemd service
    ✓ Application data directory and logs
    ✓ Service configuration
