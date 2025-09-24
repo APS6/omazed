@@ -2,33 +2,27 @@
 
 Live theme switching for Zed in Omarchy - automatically synchronize your Zed editor theme with your Omarchy system theme. Includes automatic theme generation from Alacritty configs when no Zed theme is available.
 
-## Overview
-
-Omazed watches your Omarchy theme file (`~/.config/omarchy/current/theme`) and automatically updates Zed's theme to match in real-time.
-
 ## Features
 
 - 🎨 **Live Theme Switching**: Zed theme changes instantly when you change your Omarchy system theme
-- 🔄 **Real-time Monitoring**: Uses `inotifywait` for immediate file system event detection
 - 🤖 **Automatic Theme Generation**: Creates Zed themes from Alacritty configs when no pre-made theme exists
 - ⚡ **Lightweight**: Simple bash script and systemd service
-- 🛠️ **Easy Setup**: One-command installation
-
-## Requirements
-
-- Omarchy
-- Zed editor
-- `inotify-tools`
-
-### Install Dependencies
-
-```bash
-sudo pacman -S inotify-tools
-```
+- 🛠️ **Easy Setup**: One-command installation and updates
 
 ## Installation
 
-### Quick Install
+### AUR (Recommended)
+
+```bash
+yay -S omazed
+
+# Complete setup
+omazed setup
+```
+
+That's it! Live theme switching is now active.
+
+### Manual Install
 
 ```bash
 git clone https://github.com/aps6/omazed.git
@@ -36,13 +30,17 @@ cd omazed
 ./install.sh
 ```
 
-This will:
-1. Install the sync script and theme converter to `~/.local/bin/`
-2. Copy all theme files to `~/.config/zed/themes/`
-3. Set up systemd service for auto-start
-4. Test the installation
+## Quick Update
 
-Voila! Live theme switching should now work automatically.
+### AUR Installation
+```bash
+yay -S omazed && omazed reload
+```
+
+### Manual Installation
+```bash
+cd omazed && git pull && ./install.sh
+```
 
 ## How It Works
 
@@ -89,11 +87,17 @@ This ensures that **all** Omarchy themes work with Zed.
 
 ### Commands
 ```bash
+# Set up themes and service for current user
+omazed setup
+
 # Start the theme watcher (systemd service)
 omazed start
 
 # Stop systemd service
 omazed stop
+
+# Restart systemd service
+omazed reload
 
 # Check if omazed is running
 omazed status
@@ -103,61 +107,25 @@ omazed test
 
 # Sync theme once and exit
 omazed sync
-```
 
-### Systemd Service
-```bash
-# Check service status
-systemctl --user status omazed.service
-
-# Start/stop service
-systemctl --user start omazed.service
-systemctl --user stop omazed.service
-
-# Enable/disable auto-start
-systemctl --user enable omazed.service
-systemctl --user disable omazed.service
+# Remove all omazed files and stop service
+omazed cleanup
 ```
 
 ## Troubleshooting
 
 ### Theme Not Syncing
-
 ```bash
 # Test the setup
 omazed test
 
-# Manually sync
+# Restart the service
+omazed reload
+
+# Manually sync once
 omazed sync
-
 ```
-
-### Dependencies Issues
-
-```bash
-# Verify dependencies are installed
-which inotifywait
-```
-
-## Uninstallation
-Use the uninstall script:
-```bash
-./uninstall.sh
-```
-Or remove manually:
-```bash
-# Stop and disable service
-systemctl --user stop omazed.service
-systemctl --user disable omazed.service
-
-# Remove files
-rm -f ~/.local/bin/omazed
-rm -f ~/.config/systemd/user/omazed.service
-rm -rf ~/.local/share/omazed/
-
-# Remove themes (optional)
-rm -rf ~/.config/zed/themes/
-```
+ > **Note**: Some extra themes may not work with the converter.
 
 ## Support
 

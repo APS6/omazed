@@ -124,6 +124,40 @@ setup_user() {
     return 0
 }
 
+# Reload/restart service
+reload_service() {
+    info "Reloading omazed service..."
+
+    if systemctl --user is-active --quiet omazed.service; then
+        if systemctl --user restart omazed.service; then
+            success "✓ Service restarted successfully"
+        else
+            error "Failed to restart service"
+            return 1
+        fi
+    else
+        info "Service not running, starting it..."
+        if systemctl --user start omazed.service; then
+            success "✓ Service started successfully"
+        else
+            error "Failed to start service"
+            return 1
+        fi
+    fi
+
+    # Brief status check
+    sleep 1
+    if systemctl --user is-active --quiet omazed.service; then
+        success "✓ Service is running"
+        info "Current theme sync active"
+    else
+        warn "Service may not be running properly"
+        info "Check status with: omazed status"
+    fi
+
+    return 0
+}
+
 # Check dependencies
 check_deps() {
     local missing=()
@@ -516,6 +550,7 @@ COMMANDS:
     start       Start the theme watcher (systemd service)
     status      Check if omazed is running
     stop        Stop the systemd service
+    reload      Restart the systemd service
     watch       Start watching for theme changes (foreground)
     test        Test current setup
     sync        Sync theme once and exit
@@ -544,6 +579,10 @@ main() {
                 ;;
             stop)
                 command="stop"
+                shift
+                ;;
+            reload|restart)
+                command="reload"
                 shift
                 ;;
             watch)
@@ -584,6 +623,9 @@ main() {
             ;;
         stop)
             stop_watcher
+            ;;
+        reload)
+            reload_service
             ;;
         test)
             check_deps
