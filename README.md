@@ -23,7 +23,6 @@ Omazed watches your Omarchy theme file (`~/.config/omarchy/current/theme`) and a
 ### Install Dependencies
 
 ```bash
-# Arch Linux / Omarchy
 sudo pacman -S inotify-tools
 ```
 

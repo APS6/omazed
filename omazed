@@ -12,6 +12,11 @@ LOG_FILE="$HOME/.local/share/omazed/sync.log"
 SERVICE_DIR="$HOME/.config/systemd/user"
 CONVERTER_SCRIPT="$HOME/.local/bin/omazed-converter.sh"
 
+# Check if converter script is in system location (AUR install)
+if [[ -f "/usr/bin/omazed-converter.sh" ]]; then
+    CONVERTER_SCRIPT="/usr/bin/omazed-converter.sh"
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -42,6 +47,82 @@ error() {
 echo -e "${RED}[ERROR]${NC} $*" | tee -a "$LOG_FILE" 2>/dev/null || true
 }
 
+
+# User setup function
+setup_user() {
+    info "Setting up Omazed for user: $USER"
+    echo ""
+
+    mkdir -p "$ZED_THEMES_DIR"
+
+    # Copy themes from system location or local themes directory
+    info "Installing themes..."
+    local themes_source=""
+    if [[ -d "/usr/share/omazed/themes" ]]; then
+        themes_source="/usr/share/omazed/themes"
+        info "Using system themes: $themes_source"
+    elif [[ -d "$SCRIPT_DIR/themes" ]]; then
+        themes_source="$SCRIPT_DIR/themes"
+        info "Using local themes: $themes_source"
+    else
+        error "No themes directory found. Checked:"
+        error "  - /usr/share/omazed/themes (AUR install)"
+        error "  - $SCRIPT_DIR/themes (local install)"
+        error "  Current SCRIPT_DIR: $SCRIPT_DIR"
+        return 1
+    fi
+
+    local installed_count=0
+
+    # Check if any theme files exist first
+    if ! ls "$themes_source"/*.json >/dev/null 2>&1; then
+        warn "No .json files found in $themes_source"
+        error "Theme directory exists but contains no .json files"
+        return 1
+    fi
+
+    for theme_file in "$themes_source"/*.json; do
+        if [[ -f "$theme_file" ]]; then
+            if cp "$theme_file" "$ZED_THEMES_DIR/"; then
+                info "Copied: $(basename "$theme_file")"
+                installed_count=$((installed_count + 1))
+            else
+                error "Failed to copy: $(basename "$theme_file")"
+                return 1
+            fi
+        fi
+    done
+
+    if [[ $installed_count -gt 0 ]]; then
+        success "✓ Installed $installed_count themes to $ZED_THEMES_DIR"
+    else
+        error "No themes were installed"
+        return 1
+    fi
+
+    if systemctl --user enable omazed.service 2>/dev/null; then
+        success "✓ systemd Service enabled"
+    else
+        warn "! Could not enable systemd service (may not be installed to system location)"
+    fi
+
+    if systemctl --user start omazed.service 2>/dev/null; then
+        success "✓ Service started"
+    else
+        warn "! Could not start service - you may need to start it manually"
+    fi
+
+    echo ""
+    success "Setup complete!"
+    echo ""
+    info "Testing installation..."
+    test_setup
+
+    echo ""
+    success "🎉 Omazed is ready!"
+    info "Change your Omarchy theme and watch Zed follow along automatically!"
+    return 0
+}
 
 # Check dependencies
 check_deps() {
@@ -438,6 +519,7 @@ COMMANDS:
     watch       Start watching for theme changes (foreground)
     test        Test current setup
     sync        Sync theme once and exit
+    setup       Set up themes and service for current user
 
 OPTIONS:
     -h, --help  Show this help
@@ -476,6 +558,10 @@ main() {
                 command="sync"
                 shift
                 ;;
+            setup)
+                command="setup"
+                shift
+                ;;
             -h|--help)
                 usage
                 exit 0
@@ -506,6 +592,9 @@ main() {
         sync)
             check_deps
             handle_theme_change
+            ;;
+        setup)
+            setup_user
             ;;
         watch)
             check_deps

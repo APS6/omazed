@@ -1,0 +1,18 @@
+[Unit]
+Description=Omazed - Live theme switching for zed in omarchy
+Documentation=https://github.com/aps6/omazed
+After=graphical-session.target xdg-desktop-portal.service
+Wants=graphical-session.target
+StartLimitBurst=3
+StartLimitIntervalSec=60
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/omazed watch
+Restart=on-failure
+RestartSec=10
+Environment=HOME=%h
+RestartPreventExitStatus=1
+
+[Install]
+WantedBy=graphical-session.target
