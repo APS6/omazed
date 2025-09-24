@@ -25,6 +25,9 @@ That's it! Live theme switching is now active.
 ### Manual Install
 
 ```bash
+# Install inotiy-tools (required)
+sudo pacman -S inotify-tools
+
 git clone https://github.com/aps6/omazed.git
 cd omazed
 ./install.sh
