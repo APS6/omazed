@@ -248,7 +248,6 @@ update_zed_theme() {
 
     info "Setting Zed theme to: $theme_name"
 
-    # Safety check - make sure we're not interfering with critical boot processes
     if [[ -e "/tmp/omarchy-boot-in-progress" ]]; then
         info "Omarchy boot in progress, deferring theme update"
         return 0
@@ -261,22 +260,62 @@ update_zed_theme() {
     if [[ ! -f "$ZED_SETTINGS_PATH" ]]; then
         echo '{"theme": "'"$theme_name"'"}' > "$ZED_SETTINGS_PATH"
     else
-        # Update existing theme line or add new one
+        # Update existing theme (handle both string and object formats)
         if grep -q '"theme"' "$ZED_SETTINGS_PATH"; then
-            # Replace existing theme line
-            sed -i 's/"theme"[[:space:]]*:[[:space:]]*"[^"]*"/"theme": "'"$theme_name"'"/' "$ZED_SETTINGS_PATH"
+            temp_file=$(mktemp)
+
+            # Find the theme line and handle replacement
+            awk -v theme="$theme_name" '
+            BEGIN {
+                in_theme_object = 0
+                brace_count = 0
+                theme_replaced = 0
+            }
+            /"theme"[[:space:]]*:[[:space:]]*"[^"]*"/ {
+                # Simple string theme - replace directly
+                gsub(/"theme"[[:space:]]*:[[:space:]]*"[^"]*"/, "\"theme\": \"" theme "\"")
+                theme_replaced = 1
+                print
+                next
+            }
+            /"theme"[[:space:]]*:[[:space:]]*\{/ {
+                # Object theme starts - replace with simple string
+                gsub(/"theme"[[:space:]]*:[[:space:]]*\{.*/, "\"theme\": \"" theme "\",")
+                in_theme_object = 1
+                brace_count = 1
+                theme_replaced = 1
+                print
+                next
+            }
+            in_theme_object == 1 {
+                # Count braces to find end of theme object
+                brace_count += gsub(/\{/, "{")
+                brace_count -= gsub(/\}/, "}")
+                if (brace_count <= 0) {
+                    in_theme_object = 0
+                }
+                # Skip this line (part of theme object)
+                next
+            }
+            { print }
+            ' "$ZED_SETTINGS_PATH" > "$temp_file"
+
+            # Replace original file
+            mv "$temp_file" "$ZED_SETTINGS_PATH"
         else
             # Add theme before the last closing brace
             sed -i '$s/}/,\n  "theme": "'"$theme_name"'"\n}/' "$ZED_SETTINGS_PATH"
         fi
     fi
 
-    # Verify the update worked
-    if grep -q "\"theme\":[[:space:]]*\"$theme_name\"" "$ZED_SETTINGS_PATH"; then
+    # Verify the update worked (more flexible whitespace matching)
+    if grep -q "\"theme\"[[:space:]]*:[[:space:]]*\"$theme_name\"" "$ZED_SETTINGS_PATH"; then
         success "Updated Zed settings.json"
         return 0
     else
         error "Failed to update settings"
+        info "Current settings.json content around theme:"
+        grep -A 5 -B 2 '"theme"' "$ZED_SETTINGS_PATH" || echo "No theme property found"
         return 1
     fi
 }
