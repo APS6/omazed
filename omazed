@@ -222,6 +222,8 @@ setup_user() {
         fi
     fi
 
+    handle_theme_change
+
     echo ""
     success "Setup complete!"
     echo ""
