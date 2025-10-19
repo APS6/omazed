@@ -10,6 +10,8 @@ ZED_THEMES_DIR="$ZED_CONFIG_DIR/themes"
 ZED_SETTINGS_PATH="$ZED_CONFIG_DIR/settings.json"
 LOG_FILE="$HOME/.local/share/omazed/sync.log"
 SERVICE_DIR="$HOME/.config/systemd/user"
+OMARCHY_HOOKS_DIR="$HOME/.config/omarchy/hooks"
+THEME_SET_HOOK="$OMARCHY_HOOKS_DIR/theme-set"
 CONVERTER_SCRIPT="$HOME/.local/bin/omazed-converter.sh"
 
 # Check if converter script is in system location (AUR install)
@@ -47,69 +49,177 @@ error() {
 echo -e "${RED}[ERROR]${NC} $*" | tee -a "$LOG_FILE" 2>/dev/null || true
 }
 
+set_theme_from_name() {
+    local theme_name="$1"
 
-# User setup function
+    if [[ -z "$theme_name" ]]; then
+        error "No theme name provided"
+        return 1
+    fi
+
+    info "Setting Zed theme for: $theme_name"
+
+    local zed_theme
+    zed_theme=$(map_theme_name "$theme_name")
+
+    local theme_file="$ZED_THEMES_DIR/${theme_name}.json"
+    if [[ ! -f "$theme_file" ]]; then
+        warn "Theme file not found: $theme_file"
+        info "Attempting to generate from Alacritty config..."
+
+        if convert_alacritty_to_zed "$zed_theme"; then
+            if [[ -f "$theme_file" ]]; then
+                success "Generated Zed theme from Alacritty config"
+            fi
+        else
+            info "Could not generate theme, skipping update"
+            return 0
+        fi
+    fi
+
+    if update_zed_theme "$zed_theme"; then
+        success "Theme set: $theme_name → $zed_theme"
+        return 0
+    else
+        error "Failed to set theme"
+        return 1
+    fi
+}
+
+check_omarchy_hook_support() {
+    if command -v omarchy-hook >/dev/null 2>&1; then
+        return 0
+    fi
+
+    if [[ -d "$HOME/.config/omarchy/hooks" ]]; then
+        return 0
+    fi
+
+    return 1
+}
+
+setup_omarchy_hook() {
+    info "Setting up omarchy hook integration..."
+
+    local hook_marker_start="# >>> omazed hook - do not edit >>>"
+    local hook_marker_end="# <<< omazed hook - do not edit <<<"
+    local hook_command='omazed set "$1"'
+
+    if [[ ! -f "$THEME_SET_HOOK" ]]; then
+        cat > "$THEME_SET_HOOK" << 'EOF'
+#!/bin/bash
+# This hook is called with the snake-cased name of the theme that has just been set.
+EOF
+        chmod +x "$THEME_SET_HOOK"
+        info "Created theme-set hook file"
+    fi
+
+    if grep -q "$hook_marker_start" "$THEME_SET_HOOK" 2>/dev/null; then
+        sed -i "/$hook_marker_start/,/$hook_marker_end/d" "$THEME_SET_HOOK"
+        info "Removed old omazed hook"
+    fi
+
+    cat >> "$THEME_SET_HOOK" << EOF
+
+$hook_marker_start
+$hook_command
+$hook_marker_end
+EOF
+
+    chmod +x "$THEME_SET_HOOK"
+    success "✓ Omarchy hook configured"
+    info "Theme changes will now trigger via omarchy hooks"
+}
+
+migrate_from_systemd() {
+    if systemctl --user is-enabled omazed.service 2>/dev/null; then
+        info "Detected existing systemd setup, migrating to omarchy hooks..."
+
+        if systemctl --user stop omazed.service 2>/dev/null; then
+            success "✓ Stopped systemd service"
+        fi
+
+        if systemctl --user disable omazed.service 2>/dev/null; then
+            success "✓ Disabled systemd service"
+        fi
+
+        if [[ -f "$SERVICE_DIR/omazed.service" ]]; then
+            info "Old systemd service file remains at: $SERVICE_DIR/omazed.service"
+            info "You can remove it manually if desired"
+        fi
+
+        success "✓ Migration from systemd to hooks completed"
+        return 0
+    fi
+    return 1
+}
+
 setup_user() {
     info "Setting up Omazed for user: $USER"
     echo ""
 
     mkdir -p "$ZED_THEMES_DIR"
 
-    # Copy themes from system location or local themes directory
-    info "Installing themes..."
-    local themes_source=""
     if [[ -d "/usr/share/omazed/themes" ]]; then
-        themes_source="/usr/share/omazed/themes"
+        info "Installing themes..."
+        local themes_source="/usr/share/omazed/themes"
         info "Using system themes: $themes_source"
-    elif [[ -d "$SCRIPT_DIR/themes" ]]; then
-        themes_source="$SCRIPT_DIR/themes"
-        info "Using local themes: $themes_source"
-    else
-        error "No themes directory found. Checked:"
-        error "  - /usr/share/omazed/themes (AUR install)"
-        error "  - $SCRIPT_DIR/themes (local install)"
-        error "  Current SCRIPT_DIR: $SCRIPT_DIR"
-        return 1
-    fi
 
-    local installed_count=0
+        local installed_count=0
 
-    # Check if any theme files exist first
-    if ! ls "$themes_source"/*.json >/dev/null 2>&1; then
-        warn "No .json files found in $themes_source"
-        error "Theme directory exists but contains no .json files"
-        return 1
-    fi
-
-    for theme_file in "$themes_source"/*.json; do
-        if [[ -f "$theme_file" ]]; then
-            if cp "$theme_file" "$ZED_THEMES_DIR/"; then
-                info "Copied: $(basename "$theme_file")"
-                installed_count=$((installed_count + 1))
-            else
-                error "Failed to copy: $(basename "$theme_file")"
-                return 1
-            fi
+        if ! ls "$themes_source"/*.json >/dev/null 2>&1; then
+            warn "No .json files found in $themes_source"
+            error "Theme directory exists but contains no .json files"
+            return 1
         fi
-    done
 
-    if [[ $installed_count -gt 0 ]]; then
-        success "✓ Installed $installed_count themes to $ZED_THEMES_DIR"
+        for theme_file in "$themes_source"/*.json; do
+            if [[ -f "$theme_file" ]]; then
+                if cp "$theme_file" "$ZED_THEMES_DIR/"; then
+                    info "Copied: $(basename "$theme_file")"
+                    installed_count=$((installed_count + 1))
+                else
+                    error "Failed to copy: $(basename "$theme_file")"
+                    return 1
+                fi
+            fi
+        done
+
+        if [[ $installed_count -gt 0 ]]; then
+            success "✓ Installed $installed_count themes to $ZED_THEMES_DIR"
+        else
+            error "No themes were installed"
+            return 1
+        fi
     else
-        error "No themes were installed"
-        return 1
+        info "Skipping theme installation (not an AUR installation)"
     fi
 
-    if systemctl --user enable omazed.service 2>/dev/null; then
-        success "✓ systemd Service enabled"
-    else
-        warn "! Could not enable systemd service (may not be installed to system location)"
-    fi
+    local using_hooks="false"
+    if check_omarchy_hook_support; then
+        info "Omarchy hook system available - using hook integration"
+        using_hooks="true"
 
-    if systemctl --user start omazed.service 2>/dev/null; then
-        success "✓ Service started"
+        if migrate_from_systemd; then
+            success "✓ Successfully migrated from systemd to hooks"
+        fi
+
+        setup_omarchy_hook
     else
-        warn "! Could not start service - you may need to start it manually"
+        warn "Omarchy hook system not available - using systemd watcher"
+        info "Consider updating omarchy for hook support in the future"
+
+        if systemctl --user enable omazed.service 2>/dev/null; then
+            success "✓ systemd Service enabled"
+        else
+            warn "! Could not enable systemd service (may not be installed to system location)"
+        fi
+
+        if systemctl --user start omazed.service 2>/dev/null; then
+            success "✓ Service started"
+        else
+            warn "! Could not start service - you may need to start it manually"
+        fi
     fi
 
     echo ""
@@ -120,6 +230,11 @@ setup_user() {
 
     echo ""
     success "🎉 Omazed is ready!"
+    if [[ "$using_hooks" == "true" ]]; then
+        info "Using omarchy hooks - no background service needed!"
+    else
+        info "Using systemd watcher - service running in background"
+    fi
     info "Change your Omarchy theme and watch Zed follow along automatically!"
     return 0
 }
@@ -593,17 +708,23 @@ COMMANDS:
     watch       Start watching for theme changes (foreground)
     test        Test current setup
     sync        Sync theme once and exit
+    set         Set theme by name (used by omarchy hooks)
     setup       Set up themes and service for current user
 
 OPTIONS:
     -h, --help  Show this help
+
+EXAMPLES:
+    $0 set "tokyo-night"    # Set Zed theme to Tokyo Night
+    $0 sync                 # Sync current omarchy theme to Zed
 
 EOF
 }
 
 # Main function
 main() {
-    local command="status"
+    local command=""
+    local theme_arg=""
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -634,6 +755,12 @@ main() {
                 ;;
             sync)
                 command="sync"
+                shift
+                ;;
+            set)
+                command="set"
+                shift
+                theme_arg="$1"
                 shift
                 ;;
             setup)
@@ -673,6 +800,14 @@ main() {
         sync)
             check_deps
             handle_theme_change
+            ;;
+        set)
+            if [[ -z "$theme_arg" ]]; then
+                error "Theme name required for 'set' command"
+                error "Usage: omazed set \"theme-name\""
+                exit 1
+            fi
+            set_theme_from_name "$theme_arg"
             ;;
         setup)
             setup_user

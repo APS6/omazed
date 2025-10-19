@@ -16,6 +16,8 @@ NC='\033[0m' # No Color
 BIN_DIR="$HOME/.local/bin"
 DATA_DIR="$HOME/.local/share/omazed"
 SERVICE_DIR="$HOME/.config/systemd/user"
+OMARCHY_HOOKS_DIR="$HOME/.config/omarchy/hooks"
+THEME_SET_HOOK="$OMARCHY_HOOKS_DIR/theme-set"
 SYNC_SCRIPT="$BIN_DIR/omazed"
 CONVERTER_SCRIPT="$BIN_DIR/omazed-converter.sh"
 SERVICE_FILE="$SERVICE_DIR/omazed.service"
@@ -64,6 +66,10 @@ check_installation() {
 
     if [[ -f "$SERVICE_FILE" ]]; then
         found_components+=("Systemd Service")
+    fi
+
+    if [[ -f "$THEME_SET_HOOK" ]] && grep -q "omazed" "$THEME_SET_HOOK" 2>/dev/null; then
+        found_components+=("Omarchy Hook")
     fi
 
     if [[ -d "$DATA_DIR" ]]; then
@@ -165,6 +171,24 @@ remove_data_dir() {
     fi
 }
 
+remove_omarchy_hook() {
+    info "Removing omarchy hook integration..."
+
+    local hook_marker_start="# >>> omazed hook - do not edit >>>"
+    local hook_marker_end="# <<< omazed hook - do not edit <<<"
+
+    if [[ -f "$THEME_SET_HOOK" ]]; then
+        if grep -q "$hook_marker_start" "$THEME_SET_HOOK" 2>/dev/null; then
+            sed -i "/$hook_marker_start/,/$hook_marker_end/d" "$THEME_SET_HOOK"
+            log "Removed omazed hook ✓"
+        else
+            log "No omazed hook found in theme-set file"
+        fi
+    else
+        log "No hook file found"
+    fi
+}
+
 # Check for Zed dev extension
 check_zed_themes() {
     info "Checking for installed Zed themes..."
@@ -214,7 +238,8 @@ print_completion() {
 
    ✓ Theme sync script
    ✓ Theme converter script
-   ✓ Systemd service
+   ✓ Systemd service (if present)
+   ✓ Omarchy hook integration (if present)
    ✓ Application data directory and logs
    ✓ Service configuration
 
@@ -311,6 +336,7 @@ EOF
 
     # Remove components
     remove_service
+    remove_omarchy_hook
     remove_sync_script
     remove_data_dir
     check_zed_themes

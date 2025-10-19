@@ -6,8 +6,8 @@ Live theme switching for Zed in Omarchy - automatically synchronize your Zed edi
 
 - 🎨 **Live Theme Switching**: Zed theme changes instantly when you change your Omarchy system theme
 - 🤖 **Automatic Theme Generation**: Creates Zed themes from Alacritty configs when no pre-made theme exists
-- ⚡ **Lightweight**: Simple bash script and systemd service
-- 🛠️ **Easy Setup**: One-command installation and updates
+- 🪝 **Omarchy Hook Integration**: Uses native omarchy hooks for seamless integration (no background service needed!)
+- ⚡ **Lightweight**: Simple bash script
 
 ## Installation
 
@@ -22,22 +22,23 @@ omazed setup
 
 That's it! Live theme switching is now active.
 
+**Note:** Version 1.1.0+ uses the new omarchy hook system available in omarchy 3.1.0. If you're upgrading from an older version, run `omazed setup` to automatically migrate from systemd to hooks.
+
 ### Manual Install
 
 ```bash
-# Install inotiy-tools (required)
-sudo pacman -S inotify-tools
-
 git clone https://github.com/aps6/omazed.git
 cd omazed
 ./install.sh
 ```
 
+**Note:** `inotify-tools` is only required if your omarchy version doesn't support hooks yet (automatic fallback).
+
 ## Quick Update
 
 ### AUR Installation
 ```bash
-yay -S omazed && omazed reload
+yay -S omazed && omazed setup
 ```
 
 ### Manual Installation
@@ -47,12 +48,23 @@ cd omazed && git pull && ./install.sh
 
 ## How It Works
 
+### With Omarchy Hooks (v1.1.0+, Recommended)
+
 1. **Theme Installation**: Copies `.json` theme files to `~/.config/zed/themes/`
-2. **File Watching**: Monitors `~/.config/omarchy/current/theme` for changes
-3. **Theme Detection**: Reads current theme name
+2. **Hook Integration**: Adds `omazed set "$1"` to `~/.config/omarchy/hooks/theme-set`
+3. **Theme Change Trigger**: When you change your Omarchy theme, omarchy calls the hook
 4. **Theme Resolution**: Uses pre-made theme or generates one from Alacritty config
 5. **Settings Update**: Updates `~/.config/zed/settings.json` with new theme
 6. **Instant Apply**: Zed automatically picks up the theme change
+
+### With Systemd Watcher (Fallback for older omarchy versions)
+
+If your omarchy version doesn't support hooks yet, omazed automatically falls back to:
+1. **File Watching**: Systemd service monitors `~/.config/omarchy/current/theme` for changes
+2. **Background Service**: Runs `omazed watch` in the background
+3. Rest of the process is the same as hook-based method
+
+**Note:** The systemd method requires `inotify-tools` to be installed.
 
 ## Available Themes
 
@@ -90,37 +102,71 @@ This ensures that **all** Omarchy themes work with Zed.
 
 ### Commands
 ```bash
-# Set up themes and service for current user
+# Set up themes and hook integration (or systemd fallback)
 omazed setup
 
-# Start the theme watcher (systemd service)
-omazed start
+# Set a specific theme by name (used by omarchy hooks)
+omazed set "theme-name"
 
-# Stop systemd service
-omazed stop
-
-# Restart systemd service
-omazed reload
-
-# Check if omazed is running
-omazed status
+# Sync current omarchy theme to Zed
+omazed sync
 
 # Test current setup
 omazed test
 
-# Sync theme once and exit
-omazed sync
+# Check if omazed is running (for systemd only)
+omazed status
 
-# Remove all omazed files and stop service
-omazed cleanup
+# Start/stop/reload systemd service (for systemd fallback only)
+omazed start
+omazed stop
+omazed reload
+```
+
+### Migration from Older Versions
+
+If you're upgrading from v1.0.x or earlier (systemd-based):
+
+```bash
+# Automatic migration
+omazed setup
+```
+
+This will:
+- Detect your existing systemd setup
+- Stop and disable the systemd service
+- Set up omarchy hook integration
+- Preserve all your themes and settings
+
+You can safely remove the old systemd service file afterwards:
+```bash
+rm ~/.config/systemd/user/omazed.service
 ```
 
 ## Troubleshooting
 
-### Theme Not Syncing
+### Theme Not Syncing (Hook-based setup)
 ```bash
 # Test the setup
 omazed test
+
+# Check if hook file exists and is executable
+ls -la ~/.config/omarchy/hooks/theme-set
+
+# Manually sync once to test
+omazed sync
+
+# Try setting a specific theme
+omazed set "tokyo-night"
+```
+
+### Theme Not Syncing (Systemd fallback)
+```bash
+# Test the setup
+omazed test
+
+# Check service status
+omazed status
 
 # Restart the service
 omazed reload
@@ -128,7 +174,18 @@ omazed reload
 # Manually sync once
 omazed sync
 ```
- > **Note**: Some extra themes may not work with the converter.
+
+### Checking Which Method Is Active
+
+```bash
+# If hook exists, you're using hooks
+ls ~/.config/omarchy/hooks/theme-set
+
+# If service is running, you're using systemd fallback
+systemctl --user is-active omazed.service
+```
+
+> **Note**: Some extra themes may not work with the converter.
 
 ## Support
 

@@ -16,6 +16,8 @@ NC='\033[0m'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN_DIR="$HOME/.local/bin"
 SERVICE_DIR="$HOME/.config/systemd/user"
+OMARCHY_HOOKS_DIR="$HOME/.config/omarchy/hooks"
+THEME_SET_HOOK="$OMARCHY_HOOKS_DIR/theme-set"
 SYNC_SCRIPT="omazed"
 CONVERTER_SCRIPT="omazed-converter.sh"
 ZED_THEMES_DIR="$HOME/.config/zed/themes"
@@ -36,12 +38,26 @@ print_banner() {
 EOF
 }
 
-check_dependencies() {
+check_omarchy_hook_support() {
+    if command -v omarchy-hook >/dev/null 2>&1; then
+        return 0
+    fi
 
+    if [[ -d "$HOME/.config/omarchy/hooks" ]]; then
+        return 0
+    fi
+
+    return 1
+}
+
+check_dependencies() {
     local missing=()
 
-    if ! command -v inotifywait >/dev/null 2>&1; then
-        missing+=("inotify-tools")
+    # Only require inotify-tools if we're using systemd (no hook support)
+    if ! check_omarchy_hook_support; then
+        if ! command -v inotifywait >/dev/null 2>&1; then
+            missing+=("inotify-tools")
+        fi
     fi
 
     if [[ ${#missing[@]} -gt 0 ]]; then
@@ -140,8 +156,77 @@ install_themes() {
         return 1
     fi
 }
+setup_omarchy_hook() {
+    log "Setting up omarchy hook integration..."
+
+    local hook_marker_start="# >>> omazed hook - do not edit >>>"
+    local hook_marker_end="# <<< omazed hook - do not edit <<<"
+    local hook_command='omazed set "$1"'
+
+    # Create hooks directory if it doesn't exist
+    mkdir -p "$OMARCHY_HOOKS_DIR"
+
+    # Create hook file if it doesn't exist
+    if [[ ! -f "$THEME_SET_HOOK" ]]; then
+        cat > "$THEME_SET_HOOK" << 'EOF'
+#!/bin/bash
+
+# This hook is called with the snake-cased name of the theme that has just been set.
+EOF
+        chmod +x "$THEME_SET_HOOK"
+        info "Created theme-set hook file"
+    fi
+
+    # Remove old omazed hook if it exists (for idempotency)
+    if grep -q "$hook_marker_start" "$THEME_SET_HOOK" 2>/dev/null; then
+        sed -i "/$hook_marker_start/,/$hook_marker_end/d" "$THEME_SET_HOOK"
+        info "Removed old omazed hook"
+    fi
+
+    # Append omazed hook
+    cat >> "$THEME_SET_HOOK" << EOF
+
+$hook_marker_start
+$hook_command
+$hook_marker_end
+EOF
+
+    chmod +x "$THEME_SET_HOOK"
+    log "Omarchy hook configured ✓"
+    info "Theme changes will now trigger via omarchy hooks"
+}
+
+migrate_from_systemd() {
+    # Check if user has existing systemd setup
+    if systemctl --user is-enabled omazed.service 2>/dev/null; then
+        info "Detected existing systemd setup, migrating to omarchy hooks..."
+
+        # Stop and disable the service
+        if systemctl --user stop omazed.service 2>/dev/null; then
+            log "Stopped systemd service ✓"
+        fi
+
+        if systemctl --user disable omazed.service 2>/dev/null; then
+            log "Disabled systemd service ✓"
+        fi
+
+        # Optionally remove the service file (user can manually clean up)
+        if [[ -f "$SERVICE_DIR/omazed.service" ]]; then
+            info "Old systemd service file remains at: $SERVICE_DIR/omazed.service"
+            info "You can remove it manually if desired"
+        fi
+
+        log "Migration from systemd to hooks completed ✓"
+        return 0
+    fi
+    return 1
+}
+
 create_systemd_service() {
-    log "Setting up automatic theme sync..."
+    log "Setting up automatic theme sync (systemd method)..."
+
+    info "Note: Omarchy hook system not detected, using systemd watcher"
+    info "This requires inotify-tools and a background service"
 
     mkdir -p "$SERVICE_DIR"
     cp "$SCRIPT_DIR/omazed.service" "$SERVICE_DIR/"
@@ -174,6 +259,8 @@ test_installation() {
 }
 
 print_completion() {
+    local using_hooks=$1
+
     cat << EOF
 
 ╔═══════════════════════════════════════════════════════════╗
@@ -186,6 +273,29 @@ print_completion() {
    • Sync script: $BIN_DIR/$SYNC_SCRIPT
    • Converter script: $BIN_DIR/$CONVERTER_SCRIPT
    • Zed themes: ~/.config/zed/themes/
+EOF
+
+    if [[ "$using_hooks" == "true" ]]; then
+        cat << EOF
+   • Omarchy hook: ~/.config/omarchy/hooks/theme-set
+
+✅ LIVE THEME SWITCHING IS NOW ACTIVE!
+
+   Your Zed theme will automatically change when you change your Omarchy theme.
+   Integration via omarchy hooks - no background service needed!
+
+🔧 MANUAL COMMANDS:
+   # Set a specific theme
+   omazed set "theme-name"
+
+   # Test current setup
+   omazed test
+
+   # Sync current theme once
+   omazed sync
+EOF
+    else
+        cat << EOF
    • Systemd service
 
 ✅ LIVE THEME SWITCHING IS NOW ACTIVE!
@@ -212,6 +322,10 @@ print_completion() {
 📊 SERVICE MANAGEMENT:
    systemctl --user status omazed.service
    systemctl --user restart omazed.service
+EOF
+    fi
+
+    cat << EOF
 
 🎨 Try it: Change your Omarchy theme and watch Zed follow along automatically!
 
@@ -228,10 +342,26 @@ main() {
     check_omarchy
     install_script
     install_themes
-    create_systemd_service
+
+    local using_hooks="false"
+    if check_omarchy_hook_support; then
+        log "Omarchy hook system available - using hook integration"
+        using_hooks="true"
+
+        if migrate_from_systemd; then
+            info "Successfully migrated from systemd to hooks"
+        fi
+
+        setup_omarchy_hook
+    else
+        warn "Omarchy hook system not available - using systemd watcher"
+        info "Consider updating omarchy for hook support in the future"
+        create_systemd_service
+    fi
+
     test_installation
 
-    print_completion
+    print_completion "$using_hooks"
     log "Installation completed! Live theme switching is now active! 🎉"
 }
 
