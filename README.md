@@ -80,6 +80,7 @@ The following default Omarchy themes are included:
 - **Ristretto** - Coffee-inspired dark theme
 - **Rose Pine** - Soho vibes for cosy coding (light)
 - **Tokyo Night** - Vibrant night theme
+- **Flexoki Light** - Warm, organic light theme
 
 ## Adding Custom Themes
 
