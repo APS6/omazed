@@ -2,7 +2,6 @@
 
 set -euo pipefail
 
-# Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OMARCHY_THEME_PATH="$HOME/.config/omarchy/current/theme"
 ZED_CONFIG_DIR="$HOME/.config/zed"
@@ -14,19 +13,16 @@ OMARCHY_HOOKS_DIR="$HOME/.config/omarchy/hooks"
 THEME_SET_HOOK="$OMARCHY_HOOKS_DIR/theme-set"
 CONVERTER_SCRIPT="$HOME/.local/bin/omazed-converter.sh"
 
-# Check if converter script is in system location (AUR install)
 if [[ -f "/usr/bin/omazed-converter.sh" ]]; then
     CONVERTER_SCRIPT="/usr/bin/omazed-converter.sh"
 fi
 
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-# Logging
 mkdir -p "$(dirname "$LOG_FILE")"
 
 log() {
@@ -63,8 +59,10 @@ set_theme_from_name() {
     zed_theme=$(map_theme_name "$theme_name")
 
     local theme_file="$ZED_THEMES_DIR/${theme_name}.json"
-    if [[ ! -f "$theme_file" ]]; then
-        warn "Theme file not found: $theme_file"
+    if [[ ! -f "$theme_file" ]] || [[ "$theme_name" == "aether" ]]; then
+        if [[ ! -f "$theme_file" ]]; then
+            warn "Theme file not found: $theme_file"
+        fi
         info "Attempting to generate from Alacritty config..."
 
         if convert_alacritty_to_zed "$zed_theme"; then
@@ -99,7 +97,6 @@ check_omarchy_hook_support() {
 }
 
 setup_omarchy_hook() {
-    info "Setting up omarchy hook integration..."
 
     local hook_marker_start="# >>> omazed hook - do not edit >>>"
     local hook_marker_end="# <<< omazed hook - do not edit <<<"
@@ -128,11 +125,10 @@ EOF
 
     chmod +x "$THEME_SET_HOOK"
     success "✓ Omarchy hook configured"
-    info "Theme changes will now trigger via omarchy hooks"
 }
 
 migrate_from_systemd() {
-    if systemctl --user is-enabled omazed.service 2>/dev/null; then
+    if systemctl --user is-enabled omazed.service &>/dev/null; then
         info "Detected existing systemd setup, migrating to omarchy hooks..."
 
         if systemctl --user stop omazed.service 2>/dev/null; then
@@ -191,19 +187,15 @@ setup_user() {
             error "No themes were installed"
             return 1
         fi
-    else
-        info "Skipping theme installation (not an AUR installation)"
     fi
 
     local using_hooks="false"
     if check_omarchy_hook_support; then
         info "Omarchy hook system available - using hook integration"
         using_hooks="true"
-
         if migrate_from_systemd; then
             success "✓ Successfully migrated from systemd to hooks"
         fi
-
         setup_omarchy_hook
     else
         warn "Omarchy hook system not available - using systemd watcher"
@@ -233,7 +225,7 @@ setup_user() {
     echo ""
     success "🎉 Omazed is ready!"
     if [[ "$using_hooks" == "true" ]]; then
-        info "Using omarchy hooks - no background service needed!"
+        info "Using omarchy hooks"
     else
         info "Using systemd watcher - service running in background"
     fi
@@ -241,7 +233,6 @@ setup_user() {
     return 0
 }
 
-# Reload/restart service
 reload_service() {
     info "Reloading omazed service..."
 
@@ -262,7 +253,6 @@ reload_service() {
         fi
     fi
 
-    # Brief status check
     sleep 1
     if systemctl --user is-active --quiet omazed.service; then
         success "✓ Service is running"
@@ -275,7 +265,6 @@ reload_service() {
     return 0
 }
 
-# Check dependencies
 check_deps() {
     local missing=()
 
@@ -293,16 +282,13 @@ check_deps() {
 }
 
 
-# Get current Omarchy theme
 get_current_theme() {
     local theme=""
 
-    # Try reading file content first
     if [[ -f "$OMARCHY_THEME_PATH" ]]; then
         theme=$(cat "$OMARCHY_THEME_PATH" 2>/dev/null | tr -d '\n\r' || echo "")
     fi
 
-    # If empty, try resolving symlink
     if [[ -z "$theme" && -L "$OMARCHY_THEME_PATH" ]]; then
         local link_target
         link_target=$(readlink "$OMARCHY_THEME_PATH" 2>/dev/null || echo "")
@@ -314,7 +300,6 @@ get_current_theme() {
     echo "$theme"
 }
 
-# Map Omarchy theme name to Zed theme name using regex transformation
 map_theme_name() {
     local omarchy_theme="$1"
 
@@ -322,18 +307,15 @@ map_theme_name() {
     echo "$omarchy_theme" | sed 's/\(^\|[-]\)\([a-z]\)/\1\u\2/g; s/-/ /g'
 }
 
-# Convert Alacritty theme to Zed theme using converter script
 convert_alacritty_to_zed() {
     local theme_name="$1"
     local alacritty_config="$OMARCHY_THEME_PATH/alacritty.toml"
 
-    # Check if converter script exists
     if [[ ! -f "$CONVERTER_SCRIPT" ]]; then
         error "Converter script not found: $CONVERTER_SCRIPT"
         return 1
     fi
 
-    # Check if alacritty config exists
     if [[ ! -f "$alacritty_config" ]]; then
         warn "Alacritty config not found: $alacritty_config"
         return 1
@@ -343,10 +325,8 @@ convert_alacritty_to_zed() {
     info "Source: $alacritty_config"
     info "Target: $ZED_THEMES_DIR"
 
-    # Create Zed themes directory if it doesn't exist
     mkdir -p "$ZED_THEMES_DIR"
 
-    # Run the converter
     local conversion_output
     if conversion_output=$(bash "$CONVERTER_SCRIPT" "$alacritty_config" "$theme_name" "$ZED_THEMES_DIR" 2>&1); then
         success "Successfully converted Alacritty theme to Zed theme"
@@ -359,7 +339,6 @@ convert_alacritty_to_zed() {
     fi
 }
 
-# Update Zed settings
 update_zed_theme() {
     local theme_name="$1"
 
@@ -370,18 +349,14 @@ update_zed_theme() {
         return 0
     fi
 
-    # Create config directory if it doesn't exist
     mkdir -p "$ZED_CONFIG_DIR"
 
-    # Create settings file if it doesn't exist
     if [[ ! -f "$ZED_SETTINGS_PATH" ]]; then
         echo '{"theme": "'"$theme_name"'"}' > "$ZED_SETTINGS_PATH"
     else
-        # Update existing theme (handle both string and object formats)
         if grep -q '"theme"' "$ZED_SETTINGS_PATH"; then
             temp_file=$(mktemp)
 
-            # Find the theme line and handle replacement
             awk -v theme="$theme_name" '
             BEGIN {
                 in_theme_object = 0
@@ -417,7 +392,6 @@ update_zed_theme() {
             { print }
             ' "$ZED_SETTINGS_PATH" > "$temp_file"
 
-            # Replace original file
             mv "$temp_file" "$ZED_SETTINGS_PATH"
         else
             # Add theme before the last closing brace
@@ -425,7 +399,7 @@ update_zed_theme() {
         fi
     fi
 
-    # Verify the update worked (more flexible whitespace matching)
+    # Verify the update worked
     if grep -q "\"theme\"[[:space:]]*:[[:space:]]*\"$theme_name\"" "$ZED_SETTINGS_PATH"; then
         success "Updated Zed settings.json"
         return 0
@@ -437,9 +411,7 @@ update_zed_theme() {
     fi
 }
 
-# Handle theme change
 handle_theme_change() {
-    # Safety check - don't interfere if Omarchy is still booting
     if ! pgrep -f "omarchy" >/dev/null 2>&1 && [[ ! -e "$OMARCHY_THEME_PATH" ]]; then
         info "Omarchy not ready yet, skipping theme sync"
         return 0
@@ -453,25 +425,19 @@ handle_theme_change() {
         return 1
     fi
 
-    info "Detected Omarchy theme: $current_theme"
-
-    # Map to Zed theme name
     local zed_theme
     zed_theme=$(map_theme_name "$current_theme")
 
-    # Check if corresponding theme file exists in Zed themes directory
     local theme_file="$ZED_THEMES_DIR/${current_theme}.json"
     if [[ ! -f "$theme_file" ]]; then
         warn "Theme file not found: $theme_file"
 
-        # Try to convert from Alacritty theme
         info "Attempting to generate Zed theme from Alacritty config..."
         if convert_alacritty_to_zed "$zed_theme"; then
-            # Check if the conversion created the theme file
             if [[ -f "$theme_file" ]]; then
                 success "Generated Zed theme from Alacritty config: $theme_file"
             else
-                warn "Theme conversion completed but file not found at expected location: $theme_file"
+                warn "Theme conversion completed but fi1le not found at expected location: $theme_file"
             fi
         else
             info "Available themes: $(ls -1 "$ZED_THEMES_DIR"/*.json 2>/dev/null | xargs -n1 basename | tr '\n' ' ')"
@@ -480,7 +446,6 @@ handle_theme_change() {
         fi
     fi
 
-    # Update Zed settings
     if update_zed_theme "$zed_theme"; then
         success "Theme sync completed: $current_theme → $zed_theme"
     else
@@ -490,19 +455,16 @@ handle_theme_change() {
     return 0
 }
 
-# Watch for theme changes
 start_watching() {
     info "Starting omazed theme watcher..."
     info "Watching: $OMARCHY_THEME_PATH"
     info "Zed themes: $ZED_THEMES_DIR"
     info "Zed settings: $ZED_SETTINGS_PATH"
 
-    # Wait for Omarchy to fully initialize before starting
     info "Waiting for Omarchy theme system to be ready..."
     local wait_count=0
     while [[ $wait_count -lt 30 ]]; do
         if [[ -e "$OMARCHY_THEME_PATH" ]]; then
-            # Additional check - make sure the file is stable
             sleep 2
             if [[ -e "$OMARCHY_THEME_PATH" ]]; then
                 break
@@ -518,10 +480,8 @@ start_watching() {
         info "Omarchy theme system is ready"
     fi
 
-    # Set initial theme
     handle_theme_change
 
-    # Watch for changes
     local watch_dir
     watch_dir=$(dirname "$OMARCHY_THEME_PATH")
     local watch_file
@@ -537,17 +497,13 @@ start_watching() {
     done
 }
 
-# Start systemd service
 start_watcher() {
     info "Starting omazed..."
 
-    # Check if systemd service exists
     if [[ -f "$SERVICE_DIR/omazed.service" ]]; then
-        # Start systemd service
         if systemctl --user start omazed.service 2>/dev/null; then
             success "Systemd service started ✓"
 
-            # Wait a moment and check if it's actually running
             sleep 2
             if systemctl --user is-active --quiet omazed.service; then
                 success "Service is running successfully"
@@ -568,19 +524,15 @@ start_watcher() {
     fi
 }
 
-# Check status of omazed
 check_status() {
     info "Checking omazed status..."
 
-    # Check systemd service
     if systemctl --user is-active --quiet omazed.service 2>/dev/null; then
         success "Systemd service: running ✓"
 
-        # Show service info
         info "Service status:"
         systemctl --user status omazed.service --no-pager -l || true
 
-        # Check configuration
         if [[ -e "$OMARCHY_THEME_PATH" ]]; then
             local current_theme
             current_theme=$(get_current_theme)
@@ -605,63 +557,40 @@ check_status() {
         return 1
     fi
 }
-
-# Test current setup
 test_setup() {
-    info "Testing current setup..."
 
-    # Check Omarchy theme file
     if [[ ! -e "$OMARCHY_THEME_PATH" ]]; then
         error "Omarchy theme file not found: $OMARCHY_THEME_PATH"
         return 1
     fi
 
-    # Check current theme
     local current_theme
     current_theme=$(get_current_theme)
-    if [[ -n "$current_theme" ]]; then
-        success "Current Omarchy theme: $current_theme"
-    else
+    if [[ -z "$current_theme" ]]; then
         error "Could not detect current theme"
         return 1
     fi
 
-    # Check Zed config
-    if [[ -d "$ZED_CONFIG_DIR" ]]; then
-        success "Zed config directory exists: $ZED_CONFIG_DIR"
-    else
+    if [[ ! -d "$ZED_CONFIG_DIR" ]]; then
         warn "Zed config directory not found (will be created)"
     fi
 
-    # Check converter script
-    if [[ -f "$CONVERTER_SCRIPT" ]]; then
-        success "Theme converter script found: $CONVERTER_SCRIPT"
-
-    else
+    if [[ ! -f "$CONVERTER_SCRIPT" ]]; then
         warn "Theme converter script not found: $CONVERTER_SCRIPT"
         info "Automatic theme generation from Alacritty configs will not work"
     fi
 
-    # Check installed themes
     local theme_count=0
-    if [[ -d "$ZED_THEMES_DIR" ]]; then
-        theme_count=$(find "$ZED_THEMES_DIR" -name "*.json" | wc -l)
-        success "Found $theme_count theme(s) in Zed themes directory"
-    else
+    if [[ ! -d "$ZED_THEMES_DIR" ]]; then
         warn "No Zed themes directory found"
     fi
 
-    # Test theme mapping
     local zed_theme
     zed_theme=$(map_theme_name "$current_theme")
-    success "Theme mapping: $current_theme → $zed_theme"
 
-    # Test JSON manipulation with sed
     local test_json='{"theme": "old_theme"}'
     local updated_json=$(echo "$test_json" | sed 's/"theme"[[:space:]]*:[[:space:]]*"[^"]*"/"theme": "test"/')
-    if echo "$updated_json" | grep -q '"theme": "test"'; then
-        success "JSON manipulation working"
-    else
+    if ! echo "$updated_json" | grep -q '"theme": "test"'; then
         error "JSON manipulation failed"
         return 1
     fi
@@ -670,9 +599,7 @@ test_setup() {
     return 0
 }
 
-# Stop systemd service
 stop_watcher() {
-    # Check if systemd service is running
     if systemctl --user is-active --quiet omazed.service 2>/dev/null; then
         info "Stopping omazed systemd service..."
         if systemctl --user stop omazed.service; then
@@ -686,7 +613,6 @@ stop_watcher() {
     fi
 }
 
-# Cleanup
 cleanup() {
     return 0
 }
@@ -694,7 +620,6 @@ cleanup() {
 trap cleanup EXIT
 trap 'error "Interrupted"; exit 1' INT TERM
 
-# Print usage
 usage() {
     cat << EOF
 Omazed - Live theme switching for zed in omarchy
@@ -723,12 +648,15 @@ EXAMPLES:
 EOF
 }
 
-# Main function
 main() {
     local command=""
     local theme_arg=""
 
-    # Parse arguments
+    if [[ $# -eq 0 ]]; then
+        usage
+        exit 0
+    fi
+
     while [[ $# -gt 0 ]]; do
         case $1 in
             start)
@@ -781,7 +709,6 @@ main() {
         esac
     done
 
-    # Execute command
     case $command in
         start)
             start_watcher

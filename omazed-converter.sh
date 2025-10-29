@@ -1,11 +1,9 @@
 #!/bin/bash
 
 # Omazed Converter - Convert Alacritty TOML config to Zed theme JSON
-# Bash version of converter.py with full functionality
 
 set -euo pipefail
 
-# Function to show usage
 show_usage() {
     echo "Usage: $0 <alacritty_config_file> [theme_name] [output_directory]"
     echo ""
@@ -30,7 +28,6 @@ normalize_hex_color() {
     fi
 }
 
-# Function to convert hex to RGB values
 hex_to_rgb() {
     local hex="$1"
     hex=$(normalize_hex_color "$hex")
@@ -43,13 +40,11 @@ hex_to_rgb() {
     echo "$r $g $b"
 }
 
-# Function to convert RGB to hex
 rgb_to_hex() {
     local r="$1" g="$2" b="$3"
     printf "#%02x%02x%02x" "$r" "$g" "$b"
 }
 
-# Function to lighten a color
 lighten_color() {
     local hex="$1"
     local factor="${2:-20}"
@@ -69,7 +64,6 @@ lighten_color() {
     rgb_to_hex "$r" "$g" "$b"
 }
 
-# Function to darken a color
 darken_color() {
     local hex="$1"
     local factor="${2:-20}"
@@ -90,15 +84,12 @@ darken_color() {
     rgb_to_hex "$r" "$g" "$b"
 }
 
-# Function to parse Alacritty config and extract colors
 parse_alacritty_config() {
     local content="$1"
 
-    # Parse primary colors
     background=$(echo "$content" | grep -oP 'background\s*=\s*["\'\'']*\K(?:0x|#)?[0-9a-fA-F]+' | head -1 || echo "")
     foreground=$(echo "$content" | grep -oP 'foreground\s*=\s*["\'\'']*\K(?:0x|#)?[0-9a-fA-F]+' | head -1 || echo "")
 
-    # Parse normal colors
     normal_black=$(echo "$content" | grep -A20 '\[colors\.normal\]' | grep -oP 'black\s*=\s*["\'\'']*\K(?:0x|#)?[0-9a-fA-F]+' | head -1 || echo "")
     normal_red=$(echo "$content" | grep -A20 '\[colors\.normal\]' | grep -oP 'red\s*=\s*["\'\'']*\K(?:0x|#)?[0-9a-fA-F]+' | head -1 || echo "")
     normal_green=$(echo "$content" | grep -A20 '\[colors\.normal\]' | grep -oP 'green\s*=\s*["\'\'']*\K(?:0x|#)?[0-9a-fA-F]+' | head -1 || echo "")
@@ -108,7 +99,6 @@ parse_alacritty_config() {
     normal_cyan=$(echo "$content" | grep -A20 '\[colors\.normal\]' | grep -oP 'cyan\s*=\s*["\'\'']*\K(?:0x|#)?[0-9a-fA-F]+' | head -1 || echo "")
     normal_white=$(echo "$content" | grep -A20 '\[colors\.normal\]' | grep -oP 'white\s*=\s*["\'\'']*\K(?:0x|#)?[0-9a-fA-F]+' | head -1 || echo "")
 
-    # Parse bright colors
     bright_black=$(echo "$content" | grep -A20 '\[colors\.bright\]' | grep -oP 'black\s*=\s*["\'\'']*\K(?:0x|#)?[0-9a-fA-F]+' | head -1 || echo "")
     bright_red=$(echo "$content" | grep -A20 '\[colors\.bright\]' | grep -oP 'red\s*=\s*["\'\'']*\K(?:0x|#)?[0-9a-fA-F]+' | head -1 || echo "")
     bright_green=$(echo "$content" | grep -A20 '\[colors\.bright\]' | grep -oP 'green\s*=\s*["\'\'']*\K(?:0x|#)?[0-9a-fA-F]+' | head -1 || echo "")
@@ -118,7 +108,6 @@ parse_alacritty_config() {
     bright_cyan=$(echo "$content" | grep -A20 '\[colors\.bright\]' | grep -oP 'cyan\s*=\s*["\'\'']*\K(?:0x|#)?[0-9a-fA-F]+' | head -1 || echo "")
     bright_white=$(echo "$content" | grep -A20 '\[colors\.bright\]' | grep -oP 'white\s*=\s*["\'\'']*\K(?:0x|#)?[0-9a-fA-F]+' | head -1 || echo "")
 
-    # Normalize all colors
     [[ -n "$background" ]] && background=$(normalize_hex_color "$background")
     [[ -n "$foreground" ]] && foreground=$(normalize_hex_color "$foreground")
     [[ -n "$normal_black" ]] && normal_black=$(normalize_hex_color "$normal_black")
@@ -139,7 +128,6 @@ parse_alacritty_config() {
     [[ -n "$bright_white" ]] && bright_white=$(normalize_hex_color "$bright_white")
 }
 
-# Function to get color with fallback
 get_color() {
     local primary="$1"
     local fallback="$2"
@@ -154,22 +142,18 @@ get_color() {
     fi
 }
 
-# Function to create Zed theme JSON
 create_zed_theme() {
     local theme_name="$1"
     local author="${2:-Converted}"
 
-    # Define base colors with fallbacks
     local bg="${background:-#000000}"
     local fg="${foreground:-#ffffff}"
 
-    # Create darker/lighter variants
     local darker_bg=$(darken_color "$bg" 30)
     local lighter_bg=$(lighten_color "$bg" 10)
     local much_lighter_bg=$(lighten_color "$bg" 20)
     local muted_fg=$(darken_color "$fg" 40)
 
-    # Get accent colors with fallbacks
     local blue=$(get_color "$normal_blue" "$bright_blue" "#0099ff")
     local red=$(get_color "$normal_red" "$bright_red" "#ff4444")
     local green=$(get_color "$normal_green" "$bright_green" "#44ff44")
@@ -177,7 +161,6 @@ create_zed_theme() {
     local magenta=$(get_color "$normal_magenta" "$bright_magenta" "#ff44ff")
     local cyan=$(get_color "$normal_cyan" "$bright_cyan" "#44ffff")
 
-    # Terminal ANSI colors
     local ansi_black="${normal_black:-#000000}"
     local ansi_bright_black="${bright_black:-${normal_black:-#555555}}"
     local ansi_white="${normal_white:-$fg}"
@@ -189,7 +172,6 @@ create_zed_theme() {
     local ansi_bright_magenta="${bright_magenta:-$magenta}"
     local ansi_bright_cyan="${bright_cyan:-$cyan}"
 
-    # Create the JSON theme
     cat << EOF
 {
   "\$schema": "https://zed.dev/schema/themes/v0.2.0.json",
@@ -556,14 +538,11 @@ create_zed_theme() {
 EOF
 }
 
-# Main function
 main() {
-    # Check for help flag first
     if [[ $# -eq 1 && ("$1" == "-h" || "$1" == "--help") ]]; then
         show_usage
     fi
 
-    # Check arguments
     if [[ $# -lt 1 || $# -gt 3 ]]; then
         show_usage
     fi
@@ -572,43 +551,35 @@ main() {
     local theme_name="${2:-}"
     local output_dir="${3:-}"
 
-    # Check if input file exists
     if [[ ! -f "$input_file" ]]; then
         echo "Error: File $input_file not found" >&2
         exit 1
     fi
 
-    # Set default theme name
     if [[ -z "$theme_name" ]]; then
         local basename=$(basename "$input_file")
         theme_name="Converted ${basename%.*}"
     fi
 
-    # Set default output directory
     if [[ -z "$output_dir" ]]; then
         output_dir="$(dirname "$input_file")"
     fi
 
-    # Read file content
     local content
     if ! content=$(cat "$input_file"); then
         echo "Error: Could not read file $input_file" >&2
         exit 1
     fi
 
-    # Parse colors from config
     parse_alacritty_config "$content"
 
-    # Check if we found any colors
     if [[ -z "$background" && -z "$foreground" && -z "$normal_red" && -z "$normal_green" && -z "$normal_blue" ]]; then
         echo "Warning: No colors found in the config file" >&2
         exit 1
     fi
 
-    # Create output directory if it doesn't exist
     mkdir -p "$output_dir"
 
-    # Generate output filename
     local output_filename
     output_filename="$(echo "$theme_name" | tr '[:upper:]' '[:lower:]' | tr ' ' '-').json"
     local output_file="$output_dir/$output_filename"
