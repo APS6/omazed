@@ -84,6 +84,210 @@ darken_color() {
     rgb_to_hex "$r" "$g" "$b"
 }
 
+# Convert RGB to HSL - returns "hue saturation lightness"
+rgb_to_hsl() {
+    local hex="$1"
+    read -r r g b <<< "$(hex_to_rgb "$hex")"
+
+    # Normalize to 0-1
+    local rf=$(awk "BEGIN {printf \"%.6f\", $r/255}")
+    local gf=$(awk "BEGIN {printf \"%.6f\", $g/255}")
+    local bf=$(awk "BEGIN {printf \"%.6f\", $b/255}")
+
+    # Find max and min
+    local max=$(awk "BEGIN {m=$rf; if($gf>m) m=$gf; if($bf>m) m=$bf; print m}")
+    local min=$(awk "BEGIN {m=$rf; if($gf<m) m=$gf; if($bf<m) m=$bf; print m}")
+    local delta=$(awk "BEGIN {print $max - $min}")
+
+    # Calculate lightness
+    local lightness=$(awk "BEGIN {print ($max + $min) / 2}")
+
+    # Calculate saturation
+    local saturation=0
+    if (( $(awk "BEGIN {print ($delta > 0.001)}") )); then
+        saturation=$(awk "BEGIN {print $delta / (1 - sqrt(($lightness * 2 - 1) * ($lightness * 2 - 1)))}")
+    fi
+
+    # Calculate hue
+    local hue=0
+    if (( $(awk "BEGIN {print ($delta > 0.001)}") )); then
+        if (( $(awk "BEGIN {print ($max == $rf)}") )); then
+            hue=$(awk "BEGIN {h = 60 * ((($gf - $bf) / $delta) % 6); print h}")
+        elif (( $(awk "BEGIN {print ($max == $gf)}") )); then
+            hue=$(awk "BEGIN {print 60 * ((($bf - $rf) / $delta) + 2)}")
+        else
+            hue=$(awk "BEGIN {print 60 * ((($rf - $gf) / $delta) + 4)}")
+        fi
+    fi
+
+    # Normalize to 0-360
+    hue=$(awk "BEGIN {h=$hue; while(h<0) h+=360; while(h>=360) h-=360; print h}")
+
+    echo "$hue $saturation $lightness"
+}
+
+# Convert RGB to HSL to get hue (0-360)
+rgb_to_hue() {
+    local hex="$1"
+    read -r hue sat light <<< "$(rgb_to_hsl "$hex")"
+    printf "%.0f" "$hue"
+}
+
+# Convert HSL to RGB
+hsl_to_rgb() {
+    local h="$1" s="$2" l="$3"
+
+    local c=$(awk "BEGIN {print $s * (1 - sqrt(($l * 2 - 1) * ($l * 2 - 1)))}")
+    local x=$(awk "BEGIN {print $c * (1 - sqrt((($h / 60) % 2 - 1) * (($h / 60) % 2 - 1)))}")
+    local m=$(awk "BEGIN {print $l - $c / 2}")
+
+    local rf=0 gf=0 bf=0
+
+    if (( $(awk "BEGIN {print ($h >= 0 && $h < 60)}") )); then
+        rf=$c; gf=$x; bf=0
+    elif (( $(awk "BEGIN {print ($h >= 60 && $h < 120)}") )); then
+        rf=$x; gf=$c; bf=0
+    elif (( $(awk "BEGIN {print ($h >= 120 && $h < 180)}") )); then
+        rf=0; gf=$c; bf=$x
+    elif (( $(awk "BEGIN {print ($h >= 180 && $h < 240)}") )); then
+        rf=0; gf=$x; bf=$c
+    elif (( $(awk "BEGIN {print ($h >= 240 && $h < 300)}") )); then
+        rf=$x; gf=0; bf=$c
+    else
+        rf=$c; gf=0; bf=$x
+    fi
+
+    local r=$(awk "BEGIN {printf \"%.0f\", ($rf + $m) * 255}")
+    local g=$(awk "BEGIN {printf \"%.0f\", ($gf + $m) * 255}")
+    local b=$(awk "BEGIN {printf \"%.0f\", ($bf + $m) * 255}")
+
+    # Clamp values
+    r=$((r < 0 ? 0 : r > 255 ? 255 : r))
+    g=$((g < 0 ? 0 : g > 255 ? 255 : g))
+    b=$((b < 0 ? 0 : b > 255 ? 255 : b))
+
+    rgb_to_hex "$r" "$g" "$b"
+}
+
+is_yellow() {
+    local hex="$1"
+    local hue=$(rgb_to_hue "$hex")
+    (( $(awk "BEGIN {print ($hue >= 40 && $hue <= 70)}") ))
+}
+
+is_green() {
+    local hex="$1"
+    local hue=$(rgb_to_hue "$hex")
+    (( $(awk "BEGIN {print ($hue >= 80 && $hue <= 160)}") ))
+}
+
+is_red() {
+    local hex="$1"
+    local hue=$(rgb_to_hue "$hex")
+    (( $(awk "BEGIN {print ($hue >= 340 || $hue <= 20)}") ))
+}
+
+synthesize_yellow() {
+    local hex="$1"
+    read -r hue sat light <<< "$(rgb_to_hsl "$hex")"
+
+    # Target yellow hue: 55 degrees (middle of yellow range 40-70)
+    local target_hue=55
+
+    local min_saturation=0.4
+    sat=$(awk "BEGIN {print ($sat > $min_saturation ? $sat : $min_saturation)}")
+
+    local max_lightness=0.40
+    light=$(awk "BEGIN {print ($light > $max_lightness ? $max_lightness : $light)}")
+
+    hsl_to_rgb "$target_hue" "$sat" "$light"
+}
+
+synthesize_red() {
+    local hex="$1"
+    read -r hue sat light <<< "$(rgb_to_hsl "$hex")"
+
+    # Target red hue: 0 degrees (middle of red range 340-20, wrapping around 0)
+    local target_hue=0
+
+    local min_saturation=0.4
+    sat=$(awk "BEGIN {print ($sat > $min_saturation ? $sat : $min_saturation)}")
+
+    local max_lightness=0.40
+    light=$(awk "BEGIN {print ($light > $max_lightness ? $max_lightness : $light)}")
+
+    hsl_to_rgb "$target_hue" "$sat" "$light"
+}
+
+synthesize_green() {
+    local hex="$1"
+    read -r hue sat light <<< "$(rgb_to_hsl "$hex")"
+
+    # Target green hue: 120 degrees (middle of green range 80-160)
+    local target_hue=120
+
+    local min_saturation=0.4
+    sat=$(awk "BEGIN {print ($sat > $min_saturation ? $sat : $min_saturation)}")
+
+    local max_lightness=0.37
+    light=$(awk "BEGIN {print ($light > $max_lightness ? $max_lightness : $light)}")
+
+    hsl_to_rgb "$target_hue" "$sat" "$light"
+}
+
+validate_yellow() {
+    local normal="$1"
+    local bright="$2"
+
+    if [[ -n "$normal" ]] && is_yellow "$normal"; then
+        echo "$normal"
+    elif [[ -n "$normal" ]]; then
+        local synthesized=$(synthesize_yellow "$normal")
+        local original_hue=$(rgb_to_hue "$normal")
+        echo "$synthesized"
+    elif [[ -n "$bright" ]] && is_yellow "$bright"; then
+        echo "$bright"
+    else
+        echo "#ffff00"
+    fi
+}
+
+validate_red() {
+    local normal="$1"
+    local bright="$2"
+
+    if [[ -n "$normal" ]] && is_red "$normal"; then
+        echo "$normal"
+    elif [[ -n "$normal" ]]; then
+        local synthesized=$(synthesize_red "$normal")
+        local original_hue=$(rgb_to_hue "$normal")
+        echo "$synthesized"
+    elif [[ -n "$bright" ]] && is_red "$bright"; then
+        echo "$bright"
+    else
+        echo "#ff4444"
+    fi
+}
+
+validate_green() {
+    local normal="$1"
+    local bright="$2"
+
+    if [[ -n "$normal" ]] && is_green "$normal"; then
+        echo "$normal"
+    elif [[ -n "$normal" ]]; then
+        local synthesized=$(synthesize_green "$normal")
+        local original_hue=$(rgb_to_hue "$normal")
+        echo "$synthesized"
+    elif [[ -n "$bright" ]] && is_green "$bright"; then
+        echo "$bright"
+    else
+        echo "#44ff44"
+    fi
+}
+
+
+
 parse_alacritty_config() {
     local content="$1"
 
@@ -158,6 +362,11 @@ create_zed_theme() {
     local red=$(get_color "$normal_red" "$bright_red" "#ff4444")
     local green=$(get_color "$normal_green" "$bright_green" "#44ff44")
     local yellow=$(get_color "$normal_yellow" "$bright_yellow" "#ffff44")
+
+    local ensured_yellow=$(validate_yellow "$normal_yellow" "$bright_yellow")
+    local ensured_red=$(validate_red "$normal_red" "$bright_red" )
+    local ensured_green=$(validate_green "$normal_green" "$bright_green")
+
     local magenta=$(get_color "$normal_magenta" "$bright_magenta" "#ff44ff")
     local cyan=$(get_color "$normal_cyan" "$bright_cyan" "#44ffff")
 
@@ -270,18 +479,18 @@ create_zed_theme() {
         "terminal.ansi.bright_white": "$ansi_bright_white",
         "terminal.ansi.dim_white": "$ansi_white",
         "link_text.hover": "$blue",
-        "conflict": "$yellow",
-        "conflict.background": "${yellow}20",
-        "conflict.border": "$yellow",
-        "created": "$green",
-        "created.background": "${green}20",
-        "created.border": "$green",
-        "deleted": "$red",
-        "deleted.background": "${red}20",
-        "deleted.border": "$red",
-        "error": "$red",
-        "error.background": "${red}20",
-        "error.border": "$red",
+        "conflict": "$ensured_yellow",
+        "conflict.background": "${ensured_yellow}20",
+        "conflict.border": "$ensured_yellow",
+        "created": "$ensured_green",
+        "created.background": "${ensured_green}20",
+        "created.border": "$ensured_green",
+        "deleted": "$ensured_red",
+        "deleted.background": "${ensured_red}20",
+        "deleted.border": "$ensured_red",
+        "error": "$ensured_red",
+        "error.background": "${ensured_red}20",
+        "error.border": "$ensured_red",
         "hidden": "$muted_fg",
         "hidden.background": "$bg",
         "hidden.border": "$lighter_bg",
@@ -294,24 +503,24 @@ create_zed_theme() {
         "info": "$blue",
         "info.background": "${blue}20",
         "info.border": "$blue",
-        "modified": "$yellow",
-        "modified.background": "${yellow}20",
-        "modified.border": "$yellow",
+        "modified": "$ensured_yellow",
+        "modified.background": "${ensured_yellow}20",
+        "modified.border": "$ensured_yellow",
         "predictive": "$muted_fg",
         "predictive.background": "${muted_fg}20",
         "predictive.border": "$muted_fg",
         "renamed": "$blue",
         "renamed.background": "${blue}20",
         "renamed.border": "$blue",
-        "success": "$green",
-        "success.background": "${green}20",
-        "success.border": "$green",
+        "success": "$ensured_green",
+        "success.background": "${ensured_green}20",
+        "success.border": "$ensured_green",
         "unreachable": "$muted_fg",
         "unreachable.background": "$bg",
         "unreachable.border": "$lighter_bg",
-        "warning": "$yellow",
-        "warning.background": "${yellow}20",
-        "warning.border": "$yellow",
+        "warning": "$ensured_yellow",
+        "warning.background": "${ensured_yellow}20",
+        "warning.border": "$ensured_yellow",
         "players": [
           {
             "cursor": "$blue",
@@ -334,6 +543,13 @@ create_zed_theme() {
             "selection": "${green}33"
           }
         ],
+        "version_control.added": "$ensured_green",
+        "version_control.added_background": "${ensured_green}20",
+        "version_control.deleted": "$ensured_red",
+        "version_control.deleted_background": "${ensured_red}20",
+        "version_control.modified": "$ensured_yellow",
+        "version_control.modified_background": "${ensured_yellow}20",
+
         "syntax": {
           "attribute": {
             "color": "$yellow",

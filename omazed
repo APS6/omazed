@@ -172,7 +172,6 @@ setup_user() {
         for theme_file in "$themes_source"/*.json; do
             if [[ -f "$theme_file" ]]; then
                 if cp "$theme_file" "$ZED_THEMES_DIR/"; then
-                    info "Copied: $(basename "$theme_file")"
                     installed_count=$((installed_count + 1))
                 else
                     error "Failed to copy: $(basename "$theme_file")"
