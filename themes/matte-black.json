@@ -117,9 +117,9 @@
         "conflict": "#D97706",
         "conflict.border": "#D97706",
         "conflict.background": "#D9770626",
-        "created": "#EFBF04",
-        "created.border": "#EFBF04",
-        "created.background": "#EFBF0426",
+        "created": "#03b203",
+        "created.border": "#03b20320",
+        "created.background": "#03b203",
         "deleted": "#DC2626",
         "deleted.border": "#DC2626",
         "deleted.background": "#DC262626",
@@ -198,8 +198,8 @@
             "background": "#D97706"
           }
         ],
-        "version_control.added": "#EFBF04",
-        "version_control.added_background": "#EFBF0426",
+        "version_control.added": "#03b203",
+        "version_control.added_background": "#03b20326",
         "version_control.deleted": "#DC2626",
         "version_control.deleted_background": "#DC262626",
         "version_control.modified": "#F59E0B",
