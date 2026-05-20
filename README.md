@@ -11,6 +11,8 @@ Live theme switching for Zed in Omarchy. Omazed generates a Zed theme from the c
 
 ## Installation
 
+**Note**: Omazed is automatically installed on Omarchy (3.8.0 onwards) when installing Zed via the **Install > Editor** menu.
+
 ### AUR (Recommended)
 
 ```bash
