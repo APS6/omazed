@@ -287,8 +287,10 @@ parse_colors_toml() {
     local file_path="$1"
 
     while IFS='=' read -r key value; do
-        key=$(echo "$key" | xargs)
-        value=$(echo "$value" | xargs)
+        key=${key#"${key%%[![:space:]]*}"}
+        key=${key%"${key##*[![:space:]]}"}
+        value=${value#"${value%%[![:space:]]*}"}
+        value=${value%"${value##*[![:space:]]}"}
         if [[ -z "$key" || "$key" == \#* ]]; then
             continue
         fi
