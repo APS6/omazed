@@ -1,3 +1,5 @@
+
+
 # Omazed
 
 Live theme switching for Zed in Omarchy. Omazed generates a Zed theme from the current Omarchy palette and keeps it in sync when you change themes.
@@ -48,6 +50,16 @@ omazed sync
 # Generate theme (used by Omarchy hook)
 omazed set "theme-name"
 ```
+
+## Uninstallation
+
+To remove Omazed and its components, run the provided uninstall script from the repository directory:
+
+```bash
+./uninstall.sh
+```
+
+This will cleanly remove the sync script, generator, template file, Omarchy hook integration, and application data.
 
 ## Theme Generation
 
