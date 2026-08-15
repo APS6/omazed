@@ -6,6 +6,7 @@ Live theme switching for Zed in Omarchy. Omazed generates a Zed theme from the c
 
 - Live theme syncing through Omarchy hooks
 - Generates `~/.config/zed/themes/omazed.json` from `colors.toml` (fallback to `alacritty.toml`)
+- Support for Omarchy v3 and Omarchy v4 (Quattro)
 - One-time Zed theme selection on first run after install/update
 - Lightweight Bash workflow
 
@@ -51,13 +52,12 @@ omazed set "theme-name"
 
 ## Theme Generation
 
-Omazed reads:
+Omazed's generator reads:
+- `~/.local/state/omarchy/current/theme/colors.toml` (Omarchy v4)
+- `~/.config/omarchy/current/theme/colors.toml` (Omarchy v3)
+- Falls back to `alacritty.toml` when needed
 
-- `~/.config/omarchy/current/theme/colors.toml`
-- Falls back to `~/.config/omarchy/current/theme/alacritty.toml` when needed
-
-The output is always written to:
-
+The output is written directly to:
 - `~/.config/zed/themes/omazed.json`
 
 ## Notes
@@ -68,7 +68,10 @@ The output is always written to:
 ## Troubleshooting
 
 ```bash
-# Verify hook exists
+# Verify hook exists (Omarchy v4)
+ls -la ~/.config/omarchy/hooks/theme-set.d/omazed
+
+# Verify hook exists (Omarchy v3)
 ls -la ~/.config/omarchy/hooks/theme-set
 
 # Manual regeneration test

@@ -2,7 +2,9 @@
 
 set -euo pipefail
 
-OMARCHY_THEME_PATH="$HOME/.config/omarchy/current/theme"
+OMARCHY_THEME_PATH_V4="$HOME/.local/state/omarchy/current/theme"
+OMARCHY_THEME_PATH_V3="$HOME/.config/omarchy/current/theme"
+OMARCHY_THEME_PATH="$OMARCHY_THEME_PATH_V3"
 ZED_CONFIG_DIR="$HOME/.config/zed"
 ZED_THEMES_DIR="$ZED_CONFIG_DIR/themes"
 ZED_SETTINGS_PATH="$ZED_CONFIG_DIR/settings.json"
@@ -53,6 +55,22 @@ error() {
 echo -e "${RED}[ERROR]${NC} $*" | tee -a "$LOG_FILE" 2>/dev/null || true
 }
 
+detect_omarchy_version() {
+    if command -v omarchy-version >/dev/null 2>&1; then
+        local version
+        version=$(omarchy-version 2>/dev/null | cut -d. -f1)
+        if [[ "$version" =~ ^[0-9]+$ ]] && (( version >= 4 )); then
+            echo "v4"
+            return
+        fi
+    fi
+    if [[ -d "$OMARCHY_THEME_PATH_V4" ]]; then
+        echo "v4"
+    else
+        echo "v3"
+    fi
+}
+
 set_theme_from_name() {
     local theme_name="$1"
 
@@ -84,6 +102,10 @@ check_omarchy_hook_support() {
         return 0
     fi
 
+    if [[ -d "$HOME/.config/omarchy/hooks/theme-set.d" ]]; then
+        return 0
+    fi
+
     if [[ -d "$HOME/.config/omarchy/hooks" ]]; then
         return 0
     fi
@@ -96,30 +118,54 @@ setup_omarchy_hook() {
     local hook_marker_start="# >>> omazed hook - do not edit >>>"
     local hook_marker_end="# <<< omazed hook - do not edit <<<"
     local hook_command='omazed set "$1"'
+    local version
+    version=$(detect_omarchy_version)
 
-    if [[ ! -f "$THEME_SET_HOOK" ]]; then
-        cat > "$THEME_SET_HOOK" << 'EOF'
+    if [[ "$version" == "v4" ]]; then
+        # v4 uses .d directory
+        local hook_dir="$OMARCHY_HOOKS_DIR/theme-set.d"
+        mkdir -p "$hook_dir"
+        local v4_hook_file="$hook_dir/omazed"
+
+        cat > "$v4_hook_file" << 'EOF'
+#!/bin/bash
+omazed set "$1"
+EOF
+        chmod +x "$v4_hook_file"
+        info "Created v4 omarchy hook: $v4_hook_file"
+
+        # Cleanup old v3 hook if it exists
+        if [[ -f "$THEME_SET_HOOK" ]] && grep -q "$hook_marker_start" "$THEME_SET_HOOK" 2>/dev/null; then
+            sed -i "/$hook_marker_start/,/$hook_marker_end/d" "$THEME_SET_HOOK"
+            info "Removed legacy v3 omazed hook"
+        fi
+        success "✓ Omarchy hook configured (v4)"
+    else
+        # v3 uses single file injection
+        if [[ ! -f "$THEME_SET_HOOK" ]]; then
+            cat > "$THEME_SET_HOOK" << 'EOF'
 #!/bin/bash
 # This hook is called with the snake-cased name of the theme that has just been set.
 EOF
-        chmod +x "$THEME_SET_HOOK"
-        info "Created theme-set hook file"
-    fi
+            chmod +x "$THEME_SET_HOOK"
+            info "Created theme-set hook file"
+        fi
 
-    if grep -q "$hook_marker_start" "$THEME_SET_HOOK" 2>/dev/null; then
-        sed -i "/$hook_marker_start/,/$hook_marker_end/d" "$THEME_SET_HOOK"
-        info "Removed old omazed hook"
-    fi
+        if grep -q "$hook_marker_start" "$THEME_SET_HOOK" 2>/dev/null; then
+            sed -i "/$hook_marker_start/,/$hook_marker_end/d" "$THEME_SET_HOOK"
+            info "Removed old omazed hook"
+        fi
 
-    cat >> "$THEME_SET_HOOK" << EOF
+        cat >> "$THEME_SET_HOOK" << EOF
 
 $hook_marker_start
 $hook_command
 $hook_marker_end
 EOF
 
-    chmod +x "$THEME_SET_HOOK"
-    success "✓ Omarchy hook configured"
+        chmod +x "$THEME_SET_HOOK"
+        success "✓ Omarchy hook configured (v3)"
+    fi
 }
 
 setup_user() {
@@ -147,8 +193,16 @@ setup_user() {
 
 get_current_theme() {
     local theme=""
+    local version
+    version=$(detect_omarchy_version)
 
     local theme_name_path="$HOME/.config/omarchy/current/theme.name"
+    if [[ "$version" == "v4" ]]; then
+        theme_name_path="$HOME/.local/state/omarchy/current/theme.name"
+        OMARCHY_THEME_PATH="$OMARCHY_THEME_PATH_V4"
+    else
+        OMARCHY_THEME_PATH="$OMARCHY_THEME_PATH_V3"
+    fi
 
     if [[ -f "$theme_name_path" ]]; then
         theme=$(cat "$theme_name_path" 2>/dev/null | tr -d '\n\r' || echo "")
@@ -170,6 +224,15 @@ get_current_theme() {
 }
 
 generate_zed_theme() {
+    # Resolve the correct theme path based on detected version
+    local version
+    version=$(detect_omarchy_version)
+    if [[ "$version" == "v4" ]]; then
+        OMARCHY_THEME_PATH="$OMARCHY_THEME_PATH_V4"
+    else
+        OMARCHY_THEME_PATH="$OMARCHY_THEME_PATH_V3"
+    fi
+
     local colors_toml="$OMARCHY_THEME_PATH/colors.toml"
     local alacritty_toml="$OMARCHY_THEME_PATH/alacritty.toml"
     local source_file="$colors_toml"
@@ -197,7 +260,10 @@ generate_zed_theme() {
         return 1
     fi
 
+    # Check for light mode — v4 uses mode= in colors.toml, v3 uses light.mode file
     if [[ -f "$OMARCHY_THEME_PATH/light.mode" ]]; then
+        appearance="light"
+    elif grep -qE '^mode\s*=\s*"light"' "$colors_toml" 2>/dev/null; then
         appearance="light"
     fi
 
@@ -319,7 +385,6 @@ sync_theme() {
         warn "Could not determine current Omarchy theme"
         return 1
     fi
-
 
     local theme_file="$ZED_THEMES_DIR/omazed.json"
     if [[ -f "$theme_file" ]]; then

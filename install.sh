@@ -42,11 +42,31 @@ check_omarchy_hook_support() {
         return 0
     fi
 
+    if [[ -d "$HOME/.config/omarchy/hooks/theme-set.d" ]]; then
+        return 0
+    fi
+
     if [[ -d "$HOME/.config/omarchy/hooks" ]]; then
         return 0
     fi
 
     return 1
+}
+
+detect_omarchy_version() {
+    if command -v omarchy-version >/dev/null 2>&1; then
+        local version
+        version=$(omarchy-version 2>/dev/null | cut -d. -f1)
+        if [[ "$version" =~ ^[0-9]+$ ]] && (( version >= 4 )); then
+            echo "v4"
+            return
+        fi
+    fi
+    if [[ -d "$HOME/.local/state/omarchy/current/theme" ]]; then
+        echo "v4"
+    else
+        echo "v3"
+    fi
 }
 
 check_zed() {
@@ -72,12 +92,16 @@ check_zed() {
 }
 
 check_omarchy() {
+    local version
+    version=$(detect_omarchy_version)
 
-    if [[ -e "$HOME/.config/omarchy/current/theme" ]]; then
-        log "Omarchy theme system found ✓"
+    if [[ "$version" == "v4" ]]; then
+        log "Omarchy v4 theme system found ✓"
+    elif [[ -e "$HOME/.config/omarchy/current/theme" ]]; then
+        log "Omarchy v3 theme system found ✓"
     else
         warn "Omarchy theme file not found"
-        info "Expected: $HOME/.config/omarchy/current/theme"
+        info "Expected: $HOME/.local/state/omarchy/current/theme or $HOME/.config/omarchy/current/theme"
         read -p "Continue anyway? (y/N): " -r
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             exit 1
@@ -119,38 +143,60 @@ setup_omarchy_hook() {
 
     local hook_marker_start="# >>> omazed hook - do not edit >>>"
     local hook_marker_end="# <<< omazed hook - do not edit <<<"
-    local hook_command='omazed set "$1"'
+    local version
+    version=$(detect_omarchy_version)
 
-    # Create hooks directory if it doesn't exist
-    mkdir -p "$OMARCHY_HOOKS_DIR"
+    if [[ "$version" == "v4" ]]; then
+        # v4 uses .d directory
+        local hook_dir="$OMARCHY_HOOKS_DIR/theme-set.d"
+        mkdir -p "$hook_dir"
+        local v4_hook_file="$hook_dir/omazed"
 
-    # Create hook file if it doesn't exist
-    if [[ ! -f "$THEME_SET_HOOK" ]]; then
-        cat > "$THEME_SET_HOOK" << 'EOF'
+        cat > "$v4_hook_file" << 'EOF'
+#!/bin/bash
+omazed set "$1"
+EOF
+        chmod +x "$v4_hook_file"
+        info "Created v4 omarchy hook: $v4_hook_file"
+
+        # Cleanup old v3 hook if it exists
+        if [[ -f "$THEME_SET_HOOK" ]] && grep -q "$hook_marker_start" "$THEME_SET_HOOK" 2>/dev/null; then
+            sed -i "/$hook_marker_start/,/$hook_marker_end/d" "$THEME_SET_HOOK"
+            info "Removed legacy v3 omazed hook"
+        fi
+
+        log "Omarchy hook configured (v4) ✓"
+    else
+        # v3 uses single file injection
+        mkdir -p "$OMARCHY_HOOKS_DIR"
+
+        if [[ ! -f "$THEME_SET_HOOK" ]]; then
+            cat > "$THEME_SET_HOOK" << 'EOF'
 #!/bin/bash
 
 # This hook is called with the snake-cased name of the theme that has just been set.
 EOF
-        chmod +x "$THEME_SET_HOOK"
-        info "Created theme-set hook file"
-    fi
+            chmod +x "$THEME_SET_HOOK"
+            info "Created theme-set hook file"
+        fi
 
-    # Remove old omazed hook if it exists (for idempotency)
-    if grep -q "$hook_marker_start" "$THEME_SET_HOOK" 2>/dev/null; then
-        sed -i "/$hook_marker_start/,/$hook_marker_end/d" "$THEME_SET_HOOK"
-        log "Removed old omazed hook"
-    fi
+        if grep -q "$hook_marker_start" "$THEME_SET_HOOK" 2>/dev/null; then
+            sed -i "/$hook_marker_start/,/$hook_marker_end/d" "$THEME_SET_HOOK"
+            info "Removed old omazed hook"
+        fi
 
-    # Append omazed hook
-    cat >> "$THEME_SET_HOOK" << EOF
+        local hook_command='omazed set "$1"'
+
+        cat >> "$THEME_SET_HOOK" << EOF
 
 $hook_marker_start
 $hook_command
 $hook_marker_end
 EOF
 
-    chmod +x "$THEME_SET_HOOK"
-    log "Omarchy hook configured ✓"
+        chmod +x "$THEME_SET_HOOK"
+        log "Omarchy hook configured (v3) ✓"
+    fi
 }
 
 print_completion() {

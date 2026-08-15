@@ -286,6 +286,13 @@ validate_green() {
 parse_colors_toml() {
     local file_path="$1"
 
+    # Temporary vars for v4 semantic names (applied after loop)
+    local _red="" _green="" _yellow="" _blue="" _magenta="" _cyan=""
+    local _bright_red="" _bright_green="" _bright_yellow="" _bright_blue=""
+    local _bright_magenta="" _bright_cyan=""
+    local _dark_foreground="" _light_foreground="" _bright_foreground=""
+    local _mode=""
+
     while IFS='=' read -r key value; do
         key=${key#"${key%%[![:space:]]*}"}
         key=${key%"${key##*[![:space:]]}"}
@@ -298,33 +305,85 @@ parse_colors_toml() {
         value=${value#\"}
         value=${value%\'}
         value=${value#\'}
-        [[ -n "$value" ]] && value=$(normalize_hex_color "$value")
 
         case "$key" in
-            accent) accent="$value" ;;
-            cursor) cursor="$value" ;;
-            foreground) foreground="$value" ;;
-            background) background="$value" ;;
-            selection_foreground) selection_foreground="$value" ;;
-            selection_background) selection_background="$value" ;;
-            color0) color0="$value" ;;
-            color1) color1="$value" ;;
-            color2) color2="$value" ;;
-            color3) color3="$value" ;;
-            color4) color4="$value" ;;
-            color5) color5="$value" ;;
-            color6) color6="$value" ;;
-            color7) color7="$value" ;;
-            color8) color8="$value" ;;
-            color9) color9="$value" ;;
-            color10) color10="$value" ;;
-            color11) color11="$value" ;;
-            color12) color12="$value" ;;
-            color13) color13="$value" ;;
-            color14) color14="$value" ;;
-            color15) color15="$value" ;;
+            # Shared keys (both v3 and v4)
+            accent) accent=$(normalize_hex_color "$value") ;;
+            cursor) cursor=$(normalize_hex_color "$value") ;;
+            foreground) foreground=$(normalize_hex_color "$value") ;;
+            background) background=$(normalize_hex_color "$value") ;;
+            selection|selection_background) selection_background=$(normalize_hex_color "$value") ;;
+            selection_foreground) selection_foreground=$(normalize_hex_color "$value") ;;
+
+            # v3 ANSI color slots
+            color0)  color0=$(normalize_hex_color "$value") ;;
+            color1)  color1=$(normalize_hex_color "$value") ;;
+            color2)  color2=$(normalize_hex_color "$value") ;;
+            color3)  color3=$(normalize_hex_color "$value") ;;
+            color4)  color4=$(normalize_hex_color "$value") ;;
+            color5)  color5=$(normalize_hex_color "$value") ;;
+            color6)  color6=$(normalize_hex_color "$value") ;;
+            color7)  color7=$(normalize_hex_color "$value") ;;
+            color8)  color8=$(normalize_hex_color "$value") ;;
+            color9)  color9=$(normalize_hex_color "$value") ;;
+            color10) color10=$(normalize_hex_color "$value") ;;
+            color11) color11=$(normalize_hex_color "$value") ;;
+            color12) color12=$(normalize_hex_color "$value") ;;
+            color13) color13=$(normalize_hex_color "$value") ;;
+            color14) color14=$(normalize_hex_color "$value") ;;
+            color15) color15=$(normalize_hex_color "$value") ;;
+
+            # v4 semantic color names
+            mode) _mode="$value" ;;
+            muted) _v4_muted=$(normalize_hex_color "$value") ;;
+            red)    _red=$(normalize_hex_color "$value") ;;
+            green)  _green=$(normalize_hex_color "$value") ;;
+            yellow) _yellow=$(normalize_hex_color "$value") ;;
+            blue)   _blue=$(normalize_hex_color "$value") ;;
+            magenta) _magenta=$(normalize_hex_color "$value") ;;
+            cyan)   _cyan=$(normalize_hex_color "$value") ;;
+            bright_red)     _bright_red=$(normalize_hex_color "$value") ;;
+            bright_green)   _bright_green=$(normalize_hex_color "$value") ;;
+            bright_yellow)  _bright_yellow=$(normalize_hex_color "$value") ;;
+            bright_blue)    _bright_blue=$(normalize_hex_color "$value") ;;
+            bright_magenta) _bright_magenta=$(normalize_hex_color "$value") ;;
+            bright_cyan)    _bright_cyan=$(normalize_hex_color "$value") ;;
+            dark_background)    _v4_dark_background=$(normalize_hex_color "$value") ;;
+            darker_background)  _v4_darker_background=$(normalize_hex_color "$value") ;;
+            lighter_background) _v4_lighter_background=$(normalize_hex_color "$value") ;;
+            dark_foreground)    _dark_foreground=$(normalize_hex_color "$value") ;;
+            light_foreground)   _light_foreground=$(normalize_hex_color "$value") ;;
+            bright_foreground)  _bright_foreground=$(normalize_hex_color "$value") ;;
         esac
     done < "$file_path"
+
+    # Map v4 semantic names → ANSI slots (only if the ANSI slot wasn't already set)
+    # color0=black(bg), color1=red, color2=green, color3=yellow, color4=blue,
+    # color5=magenta, color6=cyan, color7=white(fg)
+    # color8-15 are the bright variants
+    [[ -z "$color0" && -n "$background" ]]     && color0="$background"
+    [[ -z "$color1" && -n "$_red" ]]           && color1="$_red"
+    [[ -z "$color2" && -n "$_green" ]]         && color2="$_green"
+    [[ -z "$color3" && -n "$_yellow" ]]        && color3="$_yellow"
+    [[ -z "$color4" && -n "$_blue" ]]          && color4="$_blue"
+    [[ -z "$color5" && -n "$_magenta" ]]       && color5="$_magenta"
+    [[ -z "$color6" && -n "$_cyan" ]]          && color6="$_cyan"
+    [[ -z "$color7" && -n "$foreground" ]]     && color7="$foreground"
+    [[ -z "$color8" && -n "$_v4_muted" ]]         && color8="$_v4_muted"
+    [[ -z "$color9" && -n "$_bright_red" ]]    && color9="$_bright_red"
+    [[ -z "$color10" && -n "$_bright_green" ]] && color10="$_bright_green"
+    [[ -z "$color11" && -n "$_bright_yellow" ]] && color11="$_bright_yellow"
+    [[ -z "$color12" && -n "$_bright_blue" ]]  && color12="$_bright_blue"
+    [[ -z "$color13" && -n "$_bright_magenta" ]] && color13="$_bright_magenta"
+    [[ -z "$color14" && -n "$_bright_cyan" ]]  && color14="$_bright_cyan"
+    [[ -z "$color15" && -n "$foreground" ]]    && color15="$foreground"
+
+    # If v4 mode field is present, override appearance
+    if [[ "$_mode" == "light" ]]; then
+        appearance="light"
+    elif [[ "$_mode" == "dark" ]]; then
+        appearance="dark"
+    fi
 }
 
 parse_alacritty_toml() {
@@ -412,20 +471,40 @@ finalize_palette_defaults() {
 }
 
 compute_derived_colors() {
-    if [[ "$appearance" == "light" ]]; then
+    # Prefer v4 theme-author-provided values when available,
+    # otherwise compute from base colors (v3 fallback)
+    if [[ -n "$_v4_dark_background" ]]; then
+        background_darker="$_v4_dark_background"
+    elif [[ "$appearance" == "light" ]]; then
         background_darker=$(darken_color "$background" 12)
-        background_lighter=$(darken_color "$background" 4)
-        background_much_lighter=$(darken_color "$background" 18)
-        foreground_muted=$(darken_color "$foreground" 40)
     else
         background_darker=$(darken_color "$background" 25)
+    fi
+
+    if [[ -n "$_v4_lighter_background" ]]; then
+        background_lighter="$_v4_lighter_background"
+    elif [[ "$appearance" == "light" ]]; then
+        background_lighter=$(darken_color "$background" 4)
+    else
         background_lighter=$(lighten_color "$background" 10)
+    fi
+
+    if [[ "$appearance" == "light" ]]; then
+        background_much_lighter=$(darken_color "$background" 18)
+    else
         background_much_lighter=$(lighten_color "$background" 20)
+    fi
+
+    if [[ -n "$_v4_muted" ]]; then
+        foreground_muted="$_v4_muted"
+    else
         foreground_muted=$(darken_color "$foreground" 40)
     fi
 
     accent_20=$(apply_alpha "$accent" 20)
     accent_40=$(apply_alpha "$accent" 40)
+    foreground_30=$(apply_alpha "$foreground" 30)
+    foreground_50=$(apply_alpha "$foreground" 50)
 
     color1_20=$(apply_alpha "$color1" 20)
     color2_20=$(apply_alpha "$color2" 20)
@@ -486,6 +565,8 @@ render_template() {
         "background_lighter" "$background_lighter"
         "background_much_lighter" "$background_much_lighter"
         "foreground_muted" "$foreground_muted"
+        "foreground_30" "$foreground_30"
+        "foreground_50" "$foreground_50"
         "accent_20" "$accent_20"
         "accent_40" "$accent_40"
         "color1_20" "$color1_20"
@@ -553,6 +634,12 @@ main() {
     color14=""
     color15=""
 
+    # v4 derived color vars (set by parse_colors_toml, read by compute_derived_colors)
+    _v4_muted=""
+    _v4_dark_background=""
+    _v4_darker_background=""
+    _v4_lighter_background=""
+
     local script_dir
     script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
     if [[ -z "$template_file" ]]; then
@@ -579,7 +666,7 @@ main() {
     fi
 
     if [[ "$input_file" == *.toml ]]; then
-        if grep -q "^accent\s*=\|^color0\s*=" "$input_file" 2>/dev/null; then
+        if grep -qE "^(accent|color0|red|mode)\s*=" "$input_file" 2>/dev/null; then
             parse_colors_toml "$input_file"
         else
             parse_alacritty_toml "$input_file"
