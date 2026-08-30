@@ -45,6 +45,81 @@ rgb_to_hex() {
     printf "#%02x%02x%02x" "$r" "$g" "$b"
 }
 
+blend_colors() {
+    local hex1="$1"
+    local hex2="$2"
+    local percentage="${3:-50}"
+
+    read -r r1 g1 b1 <<< "$(hex_to_rgb "$hex1")"
+    read -r r2 g2 b2 <<< "$(hex_to_rgb "$hex2")"
+
+    local p1=$percentage
+    local p2=$((100 - p1))
+
+    local r=$(( (r1 * p1 + r2 * p2) / 100 ))
+    local g=$(( (g1 * p1 + g2 * p2) / 100 ))
+    local b=$(( (b1 * p1 + b2 * p2) / 100 ))
+
+    printf "#%02x%02x%02x" "$r" "$g" "$b"
+}
+ensure_contrast() {
+    local target_hex="$1"
+    local fg_hex="$2"
+    local bg_hex="$3"
+
+    awk -v target="$target_hex" -v fg="$fg_hex" -v bg="$bg_hex" '
+    function linearize(c) {
+        c = c / 255.0;
+        if (c <= 0.03928) return c / 12.92;
+        return ((c + 0.055) / 1.055) ^ 2.4;
+    }
+    function luminance(hex) {
+        r = strtonum("0x" substr(hex, 2, 2))
+        g = strtonum("0x" substr(hex, 4, 2))
+        b = strtonum("0x" substr(hex, 6, 2))
+        return 0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b)
+    }
+    function contrast(l1, l2) {
+        if (l1 > l2) return (l1 + 0.05) / (l2 + 0.05)
+        return (l2 + 0.05) / (l1 + 0.05)
+    }
+    BEGIN {
+        l_bg = luminance(bg)
+        l_target = luminance(target)
+        c = contrast(l_target, l_bg)
+
+        if (c >= 4.5) {
+            print target
+            exit
+        }
+
+        fg_r = strtonum("0x" substr(fg, 2, 2))
+        fg_g = strtonum("0x" substr(fg, 4, 2))
+        fg_b = strtonum("0x" substr(fg, 6, 2))
+
+        t_r = strtonum("0x" substr(target, 2, 2))
+        t_g = strtonum("0x" substr(target, 4, 2))
+        t_b = strtonum("0x" substr(target, 6, 2))
+
+        best_p = 100
+        for (p = 0; p <= 100; p += 5) {
+            r = (fg_r * p + t_r * (100 - p)) / 100
+            g = (fg_g * p + t_g * (100 - p)) / 100
+            b = (fg_b * p + t_b * (100 - p)) / 100
+            l_mix = 0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b)
+            if (contrast(l_mix, l_bg) >= 4.5) {
+                best_p = p
+                break
+            }
+        }
+
+        r = (fg_r * best_p + t_r * (100 - best_p)) / 100
+        g = (fg_g * best_p + t_g * (100 - best_p)) / 100
+        b = (fg_b * best_p + t_b * (100 - best_p)) / 100
+        printf "#%02x%02x%02x\n", r, g, b
+    }'
+}
+
 lighten_color() {
     local hex="$1"
     local factor="${2:-20}"
@@ -351,9 +426,9 @@ parse_colors_toml() {
             dark_background)    _v4_dark_background=$(normalize_hex_color "$value") ;;
             darker_background)  _v4_darker_background=$(normalize_hex_color "$value") ;;
             lighter_background) _v4_lighter_background=$(normalize_hex_color "$value") ;;
-            dark_foreground)    _dark_foreground=$(normalize_hex_color "$value") ;;
-            light_foreground)   _light_foreground=$(normalize_hex_color "$value") ;;
-            bright_foreground)  _bright_foreground=$(normalize_hex_color "$value") ;;
+            dark_foreground)    _v4_dark_foreground=$(normalize_hex_color "$value") ;;
+            light_foreground)   _v4_light_foreground=$(normalize_hex_color "$value") ;;
+            bright_foreground)  _v4_bright_foreground=$(normalize_hex_color "$value") ;;
         esac
     done < "$file_path"
 
@@ -495,10 +570,10 @@ compute_derived_colors() {
         background_much_lighter=$(lighten_color "$background" 20)
     fi
 
-    if [[ -n "$_v4_muted" ]]; then
-        foreground_muted="$_v4_muted"
+    if [[ -n "$_v4_dark_foreground" ]]; then
+        foreground_muted=$(ensure_contrast "$_v4_dark_foreground" "$foreground" "$background")
     else
-        foreground_muted=$(darken_color "$foreground" 40)
+        foreground_muted=$(ensure_contrast "$(blend_colors "$foreground" "$background" 65)" "$foreground" "$background")
     fi
 
     accent_20=$(apply_alpha "$accent" 20)
@@ -639,6 +714,9 @@ main() {
     _v4_dark_background=""
     _v4_darker_background=""
     _v4_lighter_background=""
+    _v4_dark_foreground=""
+    _v4_light_foreground=""
+    _v4_bright_foreground=""
 
     local script_dir
     script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
