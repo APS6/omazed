@@ -376,10 +376,19 @@ parse_colors_toml() {
         if [[ -z "$key" || "$key" == \#* ]]; then
             continue
         fi
-        value=${value%\"}
-        value=${value#\"}
-        value=${value%\'}
-        value=${value#\'}
+        # Strip surrounding quotes and any inline comment. TOML allows
+        # `key = "value"  # comment`, and quoted values legitimately contain
+        # '#' (hex colors), so '#' only starts a comment outside the quotes.
+        if [[ "$value" == \"* ]]; then
+            value=${value#\"}
+            value=${value%%\"*}
+        elif [[ "$value" == \'* ]]; then
+            value=${value#\'}
+            value=${value%%\'*}
+        else
+            value=${value%%[[:space:]]\#*}
+            value=${value%"${value##*[![:space:]]}"}
+        fi
 
         case "$key" in
             # Shared keys (both v3 and v4)
