@@ -6,9 +6,10 @@ Live theme switching for Zed in Omarchy. Omazed generates a Zed theme from the c
 
 - Live theme syncing through Omarchy hooks
 - Generates `~/.config/zed/themes/omazed.json` from `colors.toml` (fallback to `alacritty.toml`)
+- Ships both `Omazed` (opaque) and `Omazed Blur` (translucent, Catppuccin Blur style) variants
 - Support for Omarchy v3 and Omarchy v4 (Quattro)
 - One-time Zed theme selection on first run after install/update
-- Lightweight Bash workflow
+- Lightweight Bash workflow (Blur variant needs `python3` at generation time)
 
 ## Installation
 
@@ -59,6 +60,12 @@ Omazed's generator reads:
 
 The output is written directly to:
 - `~/.config/zed/themes/omazed.json`
+
+The file contains two themes: `Omazed` (opaque) and `Omazed Blur` (translucent
+`blurred` appearance with transparent editor/gutter/panel surfaces). Pick
+`Omazed Blur` once in Zed (Preferences: Color Theme) to keep the theme hooks
+while running translucent windows; later syncs regenerate both and never
+override your selection.
 
 ## Notes
 

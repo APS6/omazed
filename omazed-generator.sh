@@ -681,6 +681,70 @@ render_template() {
     printf "%s" "$content" > "$output_file"
 }
 
+append_blur_variant() {
+    local output_file="$1"
+
+    # Duplicate the opaque "Omazed" theme as a translucent "Omazed Blur"
+    # variant (Catppuccin Blur recipe: blurred appearance + transparent
+    # editor/gutter/panel surfaces, alpha-blended chrome). Graceful no-op
+    # when python3 is unavailable.
+    if ! command -v python3 >/dev/null 2>&1; then
+        echo "Warning: python3 not found, skipping Omazed Blur variant" >&2
+        return 0
+    fi
+
+    python3 - "$output_file" <<'PYEOF'
+import json
+import sys
+
+path = sys.argv[1]
+with open(path) as f:
+    data = json.load(f)
+
+opaque = data["themes"][0]
+base = opaque["style"]
+
+
+def alpha(hexcolor, aa):
+    return hexcolor[:7] + aa
+
+
+bg = base["background"][:7]
+bg_darker = base.get("elevated_surface.background", bg)[:7]
+
+blur = dict(base)
+blur["background.appearance"] = "blurred"
+blur["background"] = alpha(bg, "D7")
+blur["surface.background"] = alpha(bg, "D0")
+blur["status_bar.background"] = alpha(bg, "D7")
+blur["title_bar.background"] = alpha(bg, "D7")
+blur["tab.active_background"] = alpha(bg_darker, "B0")
+for key in (
+    "editor.background",
+    "editor.gutter.background",
+    "terminal.background",
+    "tab_bar.background",
+    "tab.inactive_background",
+    "panel.background",
+    "toolbar.background",
+):
+    blur[key] = "#00000000"
+
+data["themes"].append(
+    {
+        "name": "Omazed Blur",
+        "appearance": opaque["appearance"],
+        "style": blur,
+    }
+)
+
+with open(path, "w") as f:
+    json.dump(data, f, indent=2)
+
+print("Theme names: Omazed, Omazed Blur")
+PYEOF
+}
+
 main() {
     if [[ $# -eq 1 && ("$1" == "-h" || "$1" == "--help") ]]; then
         show_usage
@@ -770,6 +834,7 @@ main() {
     local output_file="$output_dir/omazed.json"
 
     render_template "$template_file" "$output_file"
+    append_blur_variant "$output_file"
 
     echo "Generated theme saved to: $output_file"
     echo "Theme name: Omazed"
