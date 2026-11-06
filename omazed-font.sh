@@ -62,8 +62,9 @@ set_zed_font() {
     temp_file=$(mktemp)
     clean_file=$(mktemp)
 
-    # Zed writes trailing commas which jq rejects — strip them before parsing
-    perl -0777 -pe 's/,(\s*[}\]])/\1/g' "$ZED_SETTINGS_PATH" > "$clean_file"
+    # Zed writes // comments and trailing commas which jq rejects — strip both.
+    # The (*SKIP)(*F) guard keeps // inside quoted strings intact.
+    perl -0777 -pe 's/"(?:[^"\\]|\\.)*"(*SKIP)(*F)|\/\/[^\n]*//g; s/,([\t \n]*[}\]])/\1/g' "$ZED_SETTINGS_PATH" > "$clean_file"
 
     if ! jq --arg font "$font_name" '
       .buffer_font_family = $font
