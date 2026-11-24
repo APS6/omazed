@@ -295,10 +295,14 @@ generate_zed_theme() {
     info "Target: $ZED_THEMES_DIR/omazed.json"
     info "Appearance: $appearance"
 
+    local window_appearance
+    window_appearance=$(detect_window_appearance)
+    info "Window appearance: $window_appearance"
+
     mkdir -p "$ZED_THEMES_DIR"
 
     local generation_output
-    if generation_output=$(bash "$GENERATOR_SCRIPT" "$source_file" "$ZED_THEMES_DIR" "$TEMPLATE_FILE" "$appearance" 2>&1); then
+    if generation_output=$(bash "$GENERATOR_SCRIPT" "$source_file" "$ZED_THEMES_DIR" "$TEMPLATE_FILE" "$appearance" "$window_appearance" 2>&1); then
         success "Successfully generated Zed theme"
         info "Generation output: $generation_output"
         return 0
@@ -406,6 +410,15 @@ sync_all() {
         "$FONT_SCRIPT" || result=1
     fi
     return "$result"
+}
+
+# "blurred" when Omarchy's window transparency is glassy; anything else (or a failing command) is opaque.
+detect_window_appearance() {
+    if [[ "$(omarchy hyprland window transparency 2>/dev/null)" == "glassy" ]]; then
+        echo blurred
+    else
+        echo opaque
+    fi
 }
 
 sync_theme() {
