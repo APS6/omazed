@@ -624,13 +624,14 @@ compute_derived_colors() {
     # Window surfaces: solid by default; translucent when the compositor blurs (alpha follows the palette).
     window_bg="$background"; title_bar_bg="$background_darker"; editor_bg="$background"
     gutter_bg="$background"; panel_bg="$background_darker"; bar_bg="$background_darker"
+    status_bar_bg="$background_darker"
     if [[ "$window_appearance" == "blurred" ]]; then
-        window_bg=$(apply_alpha "$background" 80)
-        title_bar_bg="$window_bg"
-        editor_bg=$(apply_alpha "$background" 70)
-        gutter_bg=$(apply_alpha "$background_darker" 70)
-        panel_bg="$gutter_bg"
-        bar_bg="#00000000"
+        # Zed paints the window background under every surface and repaints the surface on top, so alpha stacks
+        # (editor and terminal came out near-opaque). Only the window layer carries alpha; the surfaces are clear,
+        # except the title and status bars, which sit outside that layer and carry the same alpha themselves.
+        window_bg=$(apply_alpha "$background" 65)
+        title_bar_bg="$window_bg"; status_bar_bg="$window_bg"; editor_bg="#00000000"; gutter_bg="#00000000"
+        panel_bg="#00000000"; bar_bg="#00000000"
     fi
 }
 
@@ -650,6 +651,7 @@ render_template() {
         "gutter_bg" "$gutter_bg"
         "panel_bg" "$panel_bg"
         "bar_bg" "$bar_bg"
+        "status_bar_bg" "$status_bar_bg"
         "accent" "$accent"
         "cursor" "$cursor"
         "foreground" "$foreground"
