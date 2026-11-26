@@ -629,7 +629,7 @@ compute_derived_colors() {
         # Zed paints the window background under every surface and repaints the surface on top, so alpha stacks
         # (editor and terminal came out near-opaque). Only the window layer carries alpha; the surfaces are clear,
         # except the title and status bars, which sit outside that layer and carry the same alpha themselves.
-        window_bg=$(apply_alpha "$background" 65)
+        window_bg=$(apply_alpha "$background" 75)
         title_bar_bg="$window_bg"; status_bar_bg="$window_bg"; editor_bg="#00000000"; gutter_bg="#00000000"
         panel_bg="#00000000"; bar_bg="#00000000"
     fi
