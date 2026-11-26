@@ -5,7 +5,7 @@
 set -euo pipefail
 
 show_usage() {
-    echo "Usage: $0 <colors_toml_or_alacritty_file> [output_directory] [template_file] [appearance]"
+    echo "Usage: $0 <colors_toml_or_alacritty_file> [output_directory] [template_file] [appearance] [window_appearance]"
     echo ""
     echo "Generate Omazed Zed theme JSON"
     echo ""
@@ -14,6 +14,7 @@ show_usage() {
     echo "  output_directory               Optional output directory (default: same as input file)"
     echo "  template_file                  Optional template path (default: alongside generator)"
     echo "  appearance                     Optional appearance (light or dark, default: dark)"
+    echo "  window_appearance              Optional window appearance (opaque or blurred, default: opaque)"
     exit 1
 }
 
@@ -619,6 +620,19 @@ compute_derived_colors() {
     ensured_yellow_40=$(apply_alpha "$ensured_yellow" 40)
     ensured_red_40=$(apply_alpha "$ensured_red" 40)
     ensured_green_40=$(apply_alpha "$ensured_green" 40)
+
+    # Window surfaces: solid by default; translucent when the compositor blurs (alpha follows the palette).
+    window_bg="$background"; title_bar_bg="$background_darker"; editor_bg="$background"
+    gutter_bg="$background"; panel_bg="$background_darker"; bar_bg="$background_darker"
+    status_bar_bg="$background_darker"
+    if [[ "$window_appearance" == "blurred" ]]; then
+        # Zed paints the window background under every surface and repaints the surface on top, so alpha stacks
+        # (editor and terminal came out near-opaque). Only the window layer carries alpha; the surfaces are clear,
+        # except the title and status bars, which sit outside that layer and carry the same alpha themselves.
+        window_bg=$(apply_alpha "$background" 65)
+        title_bar_bg="$window_bg"; status_bar_bg="$window_bg"; editor_bg="#00000000"; gutter_bg="#00000000"
+        panel_bg="#00000000"; bar_bg="#00000000"
+    fi
 }
 
 render_template() {
@@ -630,6 +644,14 @@ render_template() {
 
     local replacements=(
         "appearance" "$appearance"
+        "window_appearance" "$window_appearance"
+        "window_bg" "$window_bg"
+        "title_bar_bg" "$title_bar_bg"
+        "editor_bg" "$editor_bg"
+        "gutter_bg" "$gutter_bg"
+        "panel_bg" "$panel_bg"
+        "bar_bg" "$bar_bg"
+        "status_bar_bg" "$status_bar_bg"
         "accent" "$accent"
         "cursor" "$cursor"
         "foreground" "$foreground"
@@ -700,7 +722,7 @@ main() {
         show_usage
     fi
 
-    if [[ $# -lt 1 || $# -gt 4 ]]; then
+    if [[ $# -lt 1 || $# -gt 5 ]]; then
         show_usage
     fi
 
@@ -708,6 +730,7 @@ main() {
     local output_dir="${2:-}"
     local template_file="${3:-}"
     appearance="${4:-dark}"
+    window_appearance="${5:-opaque}"
 
     accent=""
     cursor=""
@@ -763,6 +786,11 @@ main() {
 
     if [[ "$appearance" != "dark" && "$appearance" != "light" ]]; then
         echo "Error: appearance must be 'dark' or 'light'" >&2
+        exit 1
+    fi
+
+    if [[ "$window_appearance" != "opaque" && "$window_appearance" != "blurred" ]]; then
+        echo "Error: window_appearance must be 'opaque' or 'blurred'" >&2
         exit 1
     fi
 
