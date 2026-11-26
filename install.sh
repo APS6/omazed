@@ -19,6 +19,7 @@ OMARCHY_HOOKS_DIR="$HOME/.config/omarchy/hooks"
 THEME_SET_HOOK="$OMARCHY_HOOKS_DIR/theme-set"
 MAIN_SCRIPT="omazed"
 GENERATOR_SCRIPT="omazed-generator.sh"
+FONT_SCRIPT="omazed-font.sh"
 TEMPLATE_FILE="omazed-theme.tpl"
 
 log() { echo -e "${GREEN}[INFO]${NC} $* "; }
@@ -121,6 +122,11 @@ install_script() {
         exit 1
     fi
 
+    if [[ ! -f "$SCRIPT_DIR/$FONT_SCRIPT" ]]; then
+        error "Font script not found: $SCRIPT_DIR/$FONT_SCRIPT"
+        exit 1
+    fi
+
     if [[ ! -f "$SCRIPT_DIR/$TEMPLATE_FILE" ]]; then
         error "Template file not found: $SCRIPT_DIR/$TEMPLATE_FILE"
         exit 1
@@ -129,12 +135,15 @@ install_script() {
     mkdir -p "$BIN_DIR"
     cp "$SCRIPT_DIR/$MAIN_SCRIPT" "$BIN_DIR/"
     cp "$SCRIPT_DIR/$GENERATOR_SCRIPT" "$BIN_DIR/"
+    cp "$SCRIPT_DIR/$FONT_SCRIPT" "$BIN_DIR/"
     cp "$SCRIPT_DIR/$TEMPLATE_FILE" "$BIN_DIR/"
     chmod +x "$BIN_DIR/$MAIN_SCRIPT"
     chmod +x "$BIN_DIR/$GENERATOR_SCRIPT"
+    chmod +x "$BIN_DIR/$FONT_SCRIPT"
 
     log "Sync Script installed to: $BIN_DIR/$MAIN_SCRIPT ✓"
     log "Generator script installed to: $BIN_DIR/$GENERATOR_SCRIPT ✓"
+    log "Font script installed to: $BIN_DIR/$FONT_SCRIPT ✓"
     log "Template file installed to: $BIN_DIR/$TEMPLATE_FILE ✓"
 }
 
